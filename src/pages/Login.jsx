@@ -2,13 +2,24 @@ import { useState, useEffect } from 'react'
 import { api } from '../lib/api.js'
 
 export default function Login() {
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState(null)
 
   useEffect(() => {
-    api.getMode().then(setMode).catch(() => setMode({ mode: 'auto' }))
+    let cancelled = false
+    api.getMode()
+      .then((res) => {
+        if (cancelled) return
+        setMode(res)
+        if (res.username) setUsername((u) => (u ? u : res.username))
+      })
+      .catch(() => {
+        if (!cancelled) setMode({ mode: 'unknown' })
+      })
+    return () => { cancelled = true }
   }, [])
 
   async function submit(e) {
@@ -16,7 +27,7 @@ export default function Login() {
     setErr('')
     setLoading(true)
     try {
-      await api.login(password)
+      await api.login(username, password)
       window.location.reload()
     } catch (e) {
       setErr(e.message)
@@ -25,14 +36,13 @@ export default function Login() {
     }
   }
 
-  const isEnv = mode?.mode === 'env'
   const hint = !mode
     ? 'Loading…'
-    : isEnv
-      ? 'Enter the admin password configured in environment variables.'
-      : mode?.vaultInitialized
-        ? 'Enter your vault password to unlock.'
-        : 'First time? Set a password to create your vault.'
+    : mode.mode === 'misconfigured'
+      ? `Server misconfigured: ${mode.message}`
+      : mode.userExists
+        ? 'Sign in to your vault.'
+        : 'First time? Sign in to create your vault.'
 
   return (
     <div className="login-page">
@@ -43,14 +53,25 @@ export default function Login() {
         </p>
         <form onSubmit={submit}>
           <div className="field">
+            <label className="label">Username</label>
+            <input
+              className="input"
+              type="text"
+              autoFocus
+              autoComplete="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </div>
+          <div className="field">
             <label className="label">Password</label>
             <input
               className="input"
               type="password"
-              autoFocus
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              minLength={isEnv ? 1 : 8}
               required
             />
           </div>

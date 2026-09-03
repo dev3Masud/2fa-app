@@ -25,8 +25,8 @@ export const api = {
   getMode() {
     return request('/api/mode')
   },
-  login(password) {
-    return request('/api/login', { method: 'POST', body: JSON.stringify({ password }) })
+  login(username, password) {
+    return request('/api/login', { method: 'POST', body: JSON.stringify({ username, password }) })
   },
   logout() {
     return request('/api/logout', { method: 'POST' })

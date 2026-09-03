@@ -8,13 +8,6 @@ function getSessionSecret() {
   return process.env.SESSION_SECRET || 'dev-only-insecure-secret-change-me'
 }
 
-function getVaultKeySecret() {
-  return crypto
-    .createHash('sha256')
-    .update(getSessionSecret() + ':vault-key-wrap')
-    .digest()
-}
-
 function getAesKey() {
   return crypto.createHash('sha256').update(getSessionSecret()).digest()
 }
@@ -47,10 +40,15 @@ export function unwrapVaultKeyFromSession(wrapped) {
   }
 }
 
-export function signSession(vaultKeyB64) {
-  return jwt.sign({ vk: vaultKeyB64 }, getSessionSecret(), {
-    expiresIn: SESSION_TTL_SECONDS,
-  })
+export function signSession({ userId, vaultKey }) {
+  return jwt.sign(
+    {
+      uid: userId,
+      vk: wrapVaultKeyForSession(vaultKey),
+    },
+    getSessionSecret(),
+    { expiresIn: SESSION_TTL_SECONDS }
+  )
 }
 
 export function verifySession(token) {
@@ -110,6 +108,11 @@ export function getVaultKeyFromEvent(event) {
   const session = getSession(event)
   if (!session) return null
   return unwrapVaultKeyFromSession(session.vk)
+}
+
+export function getUserIdFromEvent(event) {
+  const session = getSession(event)
+  return session?.uid || null
 }
 
 export function jsonResponse(statusCode, body, extraHeaders = {}) {

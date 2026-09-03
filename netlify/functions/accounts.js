@@ -1,25 +1,19 @@
-import { randomBytes } from 'node:crypto'
 import { Secret } from 'otpauth'
 import { encryptSecret } from './lib/crypto.js'
 import {
-  getAccount,
-  setAccount,
-  deleteAccount,
-  listAccounts,
-  addIndexId,
-  removeIndexId,
+  listAccountsByUser,
+  getAccountById,
+  createAccount,
+  deleteAccountById,
   publicAccount,
   serializeAccount,
-} from './lib/store.js'
+} from './lib/supabase.js'
 import {
   getVaultKeyFromEvent,
+  getUserIdFromEvent,
   jsonResponse,
   errorResponse,
 } from './lib/auth.js'
-
-function genId() {
-  return randomBytes(12).toString('hex')
-}
 
 function sanitizeInput(body) {
   const {
@@ -40,10 +34,7 @@ function sanitizeInput(body) {
   }
   const cleanSecret = secret.replace(/\s+/g, '').toUpperCase()
   try {
-    new Secret({ buffer: Buffer.from(
-      cleanSecret.replace(/[^A-Z2-7=]/gi, ''),
-      'base64'
-    ) })
+    Secret.fromBase32(cleanSecret.replace(/[^A-Z2-7=]/gi, ''))
   } catch {
     try {
       Secret.base32(cleanSecret)
@@ -71,11 +62,12 @@ function sanitizeInput(body) {
 export async function handler(event) {
   const method = event.httpMethod
   const vaultKey = getVaultKeyFromEvent(event)
-  if (!vaultKey) return errorResponse(401, 'Unauthorized')
+  const userId = getUserIdFromEvent(event)
+  if (!vaultKey || !userId) return errorResponse(401, 'Unauthorized')
 
   if (method === 'GET') {
-    const all = await listAccounts()
-    return jsonResponse(200, { accounts: all.map(publicAccount) })
+    const rows = await listAccountsByUser(userId)
+    return jsonResponse(200, { accounts: rows.map(publicAccount) })
   }
 
   if (method === 'POST') {
@@ -91,35 +83,31 @@ export async function handler(event) {
     } catch (e) {
       return errorResponse(400, e.message)
     }
-    const id = genId()
     const encrypted = encryptSecret(input.secret, vaultKey)
-    const rec = serializeAccount(
-      {
-        id,
-        label: input.label,
-        issuer: input.issuer,
-        type: input.type,
-        digits: input.digits,
-        period: input.period,
-        algorithm: input.algorithm,
-        counter: input.counter,
-        createdAt: Date.now(),
+    const row = await createAccount(userId, {
+      label: input.label,
+      issuer: input.issuer,
+      type: input.type,
+      digits: input.digits,
+      period: input.period,
+      algorithm: input.algorithm,
+      counter: input.counter,
+      encryptedSecret: {
+        ciphertext: encrypted.ciphertext.toString('base64'),
+        iv: encrypted.iv.toString('base64'),
+        authTag: encrypted.authTag.toString('base64'),
       },
-      encrypted
-    )
-    await setAccount(id, rec)
-    await addIndexId(id)
-    return jsonResponse(201, { account: publicAccount(rec) })
+    })
+    return jsonResponse(201, { account: publicAccount(serializeAccount(row)) })
   }
 
   if (method === 'DELETE') {
     const qs = event.queryStringParameters || {}
     const id = qs.id
     if (!id) return errorResponse(400, 'id is required')
-    const existing = await getAccount(id)
+    const existing = await getAccountById(userId, id)
     if (!existing) return errorResponse(404, 'Not found')
-    await deleteAccount(id)
-    await removeIndexId(id)
+    await deleteAccountById(userId, id)
     return jsonResponse(200, { ok: true })
   }
 

@@ -10,7 +10,7 @@
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
-    "@netlify/blobs": "^8.0.0",
+    "@supabase/supabase-js": "^2.114.0",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "jsqr": "^1.4.0",
