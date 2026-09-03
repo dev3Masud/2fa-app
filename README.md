@@ -1,17 +1,28 @@
-# 2FA Vault
+# 2FA Vault 🔒
 
-A self-hosted 2FA (TOTP/HOTP) manager built with Node.js + Express + React + Supabase. Zero-knowledge encryption: your password is the master key.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/Demo-2fa--app--five.vercel.app-6366f1?logo=vercel)](https://2fa-app-five.vercel.app)
+[![Node Version](https://img.shields.io/badge/node-%3E%3D20.x-green.svg)](package.json)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![Security Policy](https://img.shields.io/badge/Security-AES--256--GCM-red.svg)](SECURITY.md)
 
-## Features
+A modern, self-hosted, zero-knowledge 2FA (TOTP/HOTP) authenticator vault built with Node.js + Express + React + Supabase. Your master password is the only key capable of decrypting your secrets.
 
-- **Single Node.js project** — Express server + React SPA in one repo
-- Username + password auth (mandatory `ADMIN_USER` / `ADMIN_PASS` env vars, 16+ char password)
-- Zero-knowledge: secrets encrypted with a key derived from your password (PBKDF2 + AES-256-GCM)
-- Stored in **Supabase Postgres** (encrypted at rest by your key, not theirs)
-- QR upload, `otpauth://` paste, or manual entry
-- Live TOTP codes with countdown
-- TOTP and HOTP support (SHA1/256/512, 6/7/8 digits)
-- Single-user design
+---
+
+## ✨ Features
+
+- **Zero-Knowledge Encryption** — Secrets encrypted client/server-side using PBKDF2 (310,000 iterations) + AES-256-GCM before reaching the database.
+- **Custom Groups & Categories** — Organize accounts into custom groups (e.g. Work, Personal, Crypto) with inline creation and collapse/expand sections.
+- **Icon Library & Brand Detection** — Built-in logo picker with 70+ popular service logos and automatic brand detection from issuer names.
+- **2-Step Safe Deletion** — Safeguard against accidental deletion with a two-step confirmation modal and `SUDO DELETE` command verification.
+- **Live TOTP & Countdown Timer** — Epoch-synchronized precision countdown with automated rollover code generation.
+- **Flexible Algorithm Support** — Full support for both TOTP (RFC 6238) and HOTP (RFC 4226) with SHA1, SHA256, SHA512, and 6/7/8 digit codes.
+- **Fast Search & Instant Filter** — Instant fuzzy filtering by account label, issuer, or category with `/` keyboard shortcut.
+- **QR Code Scanner** — Client-side instant camera/image QR scanning, drag-and-drop screenshots, and `otpauth://` URI parsing.
+- **Vercel Analytics & Speed Insights** — Integrated web vitals and real-time usage performance analytics.
+- **Database Storage in Supabase Postgres** — Encrypted at rest; service role authorization ensures no public table exposure.
+- **Single-Node Stack** — Express API + React SPA seamlessly unified in a single repository.
 
 ## Security hardening (built-in)
 
@@ -200,9 +211,17 @@ The app **refuses to start** if any required var is missing or `ADMIN_PASS < 16`
 - **Single-user.** `ADMIN_USER` is the only account. Multi-user would need different table layout.
 - **`ADMIN_PASS` is also the encryption key.** Changing it requires re-creating the vault (delete all account rows, then sign in with the new password — but the old ciphertext is unrecoverable).
 
-## Future ideas
+## 🤝 Community & Contributing
 
-- Encrypted export/import
-- Auto-refresh TOTP codes in dashboard
-- Multiple users
-- Search/filter accounts
+Contributions, issues, and feature requests are welcome!
+* Read our [Contributing Guide](CONTRIBUTING.md) to get started.
+* Review the [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
+* For security disclosures, please consult our [Security Policy](SECURITY.md).
+* See [CHANGELOG.md](CHANGELOG.md) for recent release notes and changes.
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE) - see the [LICENSE](LICENSE) file for details.
+
