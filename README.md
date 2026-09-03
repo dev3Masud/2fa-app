@@ -31,7 +31,7 @@ A self-hosted 2FA (TOTP/HOTP) manager that runs entirely on Netlify. No third-pa
 
 ## Setup
 
-### 1. Netlify env var
+### 1. Netlify env vars (required)
 
 Set in Netlify dashboard → Site settings → Environment variables:
 
@@ -39,28 +39,57 @@ Set in Netlify dashboard → Site settings → Environment variables:
 SESSION_SECRET=<64 hex characters, e.g. from: openssl rand -hex 32>
 ```
 
-That's the only required variable. The vault initializes itself on first login.
+### 2. (Optional) Fixed admin password
 
-### 2. Deploy
+To lock login to a password you control via env var (instead of letting the first visitor set one), add:
+
+```
+ADMIN_PASS=<your chosen password>
+```
+
+If `ADMIN_PASS` is set, the app uses **env mode**:
+- Only the `ADMIN_PASS` value is accepted — no other password will work
+- The vault is auto-initialized on first successful login
+- Forgot `ADMIN_PASS`? Set a new one in env vars and re-deploy; existing vault data is preserved (the old `ADMIN_PASS` was the encryption key, so changing it means the vault needs to be re-created — see "Password change" below)
+
+If `ADMIN_PASS` is **not** set, the app uses **auto mode** (default):
+- The first visitor's password (8+ chars) creates the vault
+- That password becomes the master key for all future logins
+
+### 3. Deploy
 
 Pushes to `main` auto-deploy. The site at `2fa-netlify-app.netlify.app` will update within ~1 minute.
 
-### 3. First login
+### 4. First login
 
 1. Visit the site
-2. Enter a password (8+ characters) — **this becomes the master key**
-3. Vault is created, JWT issued, redirect to dashboard
+2. **Env mode:** enter the `ADMIN_PASS` value
+   **Auto mode:** enter a password (8+ characters) — this becomes the master key
+3. Vault is created (or unlocked), JWT issued, redirect to dashboard
 4. Add accounts via QR upload, URI paste, or manual entry
 
-## Local development
+### Local development
 
 ```bash
 npm install
 export SESSION_SECRET=$(openssl rand -hex 32)
+# optional: export ADMIN_PASS=mysecret
 npx netlify dev
 ```
 
 The app runs at `http://localhost:8888` with functions proxied from `/api/*`.
+
+### Changing `ADMIN_PASS` (env mode)
+
+Because the password is the encryption key, changing it requires re-creating the vault:
+
+1. Note the new `ADMIN_PASS` value
+2. In Netlify, change the env var
+3. Trigger a redeploy
+4. Visit the site — existing accounts will be unreadable (decryption will fail)
+5. Delete old accounts and re-add them, OR export/import feature (not yet implemented)
+
+## Local development
 
 ## Project structure
 

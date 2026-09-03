@@ -22,6 +22,9 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  getMode() {
+    return request('/api/mode')
+  },
   login(password) {
     return request('/api/login', { method: 'POST', body: JSON.stringify({ password }) })
   },

@@ -21,9 +21,37 @@ import {
   errorResponse,
 } from './lib/auth.js'
 
+const PBKDF2_ITERATIONS = 310000
 const BCRYPT_COST = 12
 
-async function initVault(password) {
+function getEnvPassword() {
+  return process.env.ADMIN_PASS || null
+}
+
+async function ensureEnvVault() {
+  const verifier = await getVerifier()
+  if (verifier) return null
+  const envPass = getEnvPassword()
+  if (!envPass) return null
+  const salt = generateSalt()
+  const kek = deriveKek(envPass, salt)
+  const vaultKey = generateVaultKey()
+  const wrapped = wrapVaultKey(vaultKey, kek)
+  const bcryptHash = await bcrypt.hash(envPass, BCRYPT_COST)
+  await setVerifier({
+    bcryptHash,
+    salt: salt.toString('base64'),
+    iterations: PBKDF2_ITERATIONS,
+  })
+  await setWrappedKey({
+    ...encryptedToBlob(wrapped),
+    salt: salt.toString('base64'),
+    iterations: PBKDF2_ITERATIONS,
+  })
+  return vaultKey
+}
+
+async function initAutoVault(password) {
   const salt = generateSalt()
   const kek = deriveKek(password, salt)
   const vaultKey = generateVaultKey()
@@ -32,12 +60,12 @@ async function initVault(password) {
   await setVerifier({
     bcryptHash,
     salt: salt.toString('base64'),
-    iterations: 310000,
+    iterations: PBKDF2_ITERATIONS,
   })
   await setWrappedKey({
     ...encryptedToBlob(wrapped),
     salt: salt.toString('base64'),
-    iterations: 310000,
+    iterations: PBKDF2_ITERATIONS,
   })
   return vaultKey
 }
@@ -72,15 +100,41 @@ export async function handler(event) {
     return errorResponse(400, 'Invalid JSON')
   }
   const { password } = body
-  if (!password || typeof password !== 'string' || password.length < 8) {
-    return errorResponse(400, 'Password must be at least 8 characters')
+  if (!password || typeof password !== 'string' || password.length < 1) {
+    return errorResponse(400, 'Password is required')
   }
+
+  const envPass = getEnvPassword()
+  const mode = envPass ? 'env' : 'auto'
+
   try {
+    if (mode === 'env') {
+      if (password !== envPass) {
+        await new Promise((r) => setTimeout(r, 250))
+        return errorResponse(401, 'Invalid password')
+      }
+      let vaultKey = await ensureEnvVault()
+      if (!vaultKey) {
+        vaultKey = await unlockVault(password)
+        if (!vaultKey) return errorResponse(500, 'Vault unlock failed')
+      }
+      const wrappedForSession = wrapVaultKeyForSession(vaultKey)
+      const token = signSession(wrappedForSession)
+      return jsonResponse(
+        200,
+        { ok: true, mode: 'env' },
+        { 'Set-Cookie': buildCookie(token) }
+      )
+    }
+
+    if (password.length < 8) {
+      return errorResponse(400, 'Password must be at least 8 characters')
+    }
     const verifier = await getVerifier()
     let isInit = false
     let vaultKey
     if (!verifier) {
-      vaultKey = await initVault(password)
+      vaultKey = await initAutoVault(password)
       isInit = true
     } else {
       vaultKey = await unlockVault(password)
@@ -92,7 +146,7 @@ export async function handler(event) {
     const token = signSession(wrappedForSession)
     return jsonResponse(
       200,
-      { ok: true, initialized: isInit },
+      { ok: true, mode: 'auto', initialized: isInit },
       { 'Set-Cookie': buildCookie(token) }
     )
   } catch (err) {

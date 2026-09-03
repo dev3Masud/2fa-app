@@ -1,18 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { api } from '../lib/api.js'
 
-export default function Login({ onLogin }) {
+export default function Login() {
   const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
   const [loading, setLoading] = useState(false)
+  const [mode, setMode] = useState(null)
+
+  useEffect(() => {
+    api.getMode().then(setMode).catch(() => setMode({ mode: 'auto' }))
+  }, [])
 
   async function submit(e) {
     e.preventDefault()
     setErr('')
     setLoading(true)
     try {
-      const res = await api.login(password)
-      onLogin(res)
+      await api.login(password)
+      window.location.reload()
     } catch (e) {
       setErr(e.message)
     } finally {
@@ -20,12 +25,21 @@ export default function Login({ onLogin }) {
     }
   }
 
+  const isEnv = mode?.mode === 'env'
+  const hint = !mode
+    ? 'Loading…'
+    : isEnv
+      ? 'Enter the admin password configured in environment variables.'
+      : mode?.vaultInitialized
+        ? 'Enter your vault password to unlock.'
+        : 'First time? Set a password to create your vault.'
+
   return (
     <div className="login-page">
       <div className="card login-card">
         <h1>2FA Vault</h1>
         <p className="info" style={{ marginTop: 0 }}>
-          Enter your password to unlock. First time? Your password becomes the master key.
+          {hint}
         </p>
         <form onSubmit={submit}>
           <div className="field">
@@ -36,7 +50,7 @@ export default function Login({ onLogin }) {
               autoFocus
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              minLength={8}
+              minLength={isEnv ? 1 : 8}
               required
             />
           </div>
