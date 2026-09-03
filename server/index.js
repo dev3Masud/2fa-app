@@ -92,13 +92,18 @@ app.use((err, req, res, _next) => {
   res.status(500).json({ error: 'Internal server error' })
 })
 
-app.listen(PORT, () => {
-  console.log(`✅ 2FA Vault API running on http://localhost:${PORT}`)
-  if (isDev) {
-    console.log('   Mode: development (no static files — use Vite on :3000)')
-  } else {
-    console.log(`   Mode: production (serving dist/ on port ${PORT})`)
-  }
-})
+// Only start the listener when run directly. On serverless platforms
+// (Vercel, AWS Lambda), importing this module just exports the app.
+const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME
+if (!isServerless) {
+  app.listen(PORT, () => {
+    console.log(`✅ 2FA Vault API running on http://localhost:${PORT}`)
+    if (isDev) {
+      console.log('   Mode: development (no static files — use Vite on :3000)')
+    } else {
+      console.log(`   Mode: production (serving dist/ on port ${PORT})`)
+    }
+  })
+}
 
 export default app
