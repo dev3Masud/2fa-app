@@ -187,9 +187,7 @@ export default function AccountCard({
       {/* In-App Delete Confirmation Modal */}
       <DeleteModal
         isOpen={showDeleteModal}
-        title="Delete 2FA Account"
-        message="Are you sure you want to delete this account? You will lose access to 2FA tokens generated for it."
-        itemName={account.label}
+        account={account}
         loading={deleting}
         onConfirm={confirmDelete}
         onCancel={() => setShowDeleteModal(false)}
