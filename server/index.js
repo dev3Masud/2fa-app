@@ -11,6 +11,7 @@ import accountsRouter from './routes/accounts.js'
 import totpRouter from './routes/totp.js'
 import qrParseRouter from './routes/qr-parse.js'
 import modeRouter from './routes/mode.js'
+import groupsRouter from './routes/groups.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DIST_DIR = join(__dirname, '..', 'dist')
@@ -65,6 +66,7 @@ app.use('/api/accounts', accountsRouter)
 app.use('/api/totp', totpRouter)
 app.use('/api/qr-parse', qrParseRouter)
 app.use('/api/mode', modeRouter)
+app.use('/api/groups', groupsRouter)
 
 // 404 for unknown /api/* routes
 app.use('/api/*', (req, res) => {

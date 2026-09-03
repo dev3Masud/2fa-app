@@ -10,6 +10,7 @@ import {
   deleteCustomGroup,
   subscribeGroups,
   getAllAccountMeta,
+  syncGroupsFromBackend,
 } from '../lib/groupsStorage.js'
 
 
@@ -67,24 +68,41 @@ export default function Dashboard() {
     }
   }, [])
 
-  // ── Load accounts ─────────────────────────────────────────────────────────
+  // ── Load accounts & groups from database ───────────────────────────────────
   const load = useCallback(async () => {
     try {
-      const res = await api.listAccounts()
+      const [accResult, grpResult] = await Promise.allSettled([
+        api.listAccounts(),
+        api.listGroups(),
+      ])
+
+      if (accResult.status === 'rejected') {
+        throw accResult.reason
+      }
+
+      // Sync backend groups into local storage
+      if (grpResult.status === 'fulfilled' && grpResult.value?.groups) {
+        syncGroupsFromBackend(grpResult.value.groups)
+      }
+
+      const res = accResult.value
       const meta = getAllAccountMeta()
 
       // Merge backend accounts with local group/logo metadata
       const merged = (res.accounts || []).map((acc) => {
         const local = meta[acc.id]
         let groupVal = ''
-        if (local && typeof local.group === 'string') {
-          groupVal = local.group
-        } else if (acc.group && acc.group.toLowerCase() !== 'general') {
-          groupVal = acc.group
+        if (local && typeof local.group === 'string' && local.group.trim()) {
+          groupVal = local.group.trim()
+        } else if (acc.group && typeof acc.group === 'string') {
+          const g = acc.group.trim()
+          if (g.toLowerCase() !== 'general') {
+            groupVal = g
+          }
         }
 
         let logoVal = ''
-        if (local && typeof local.logo === 'string') {
+        if (local && typeof local.logo === 'string' && local.logo) {
           logoVal = local.logo
         } else if (acc.logo) {
           logoVal = acc.logo

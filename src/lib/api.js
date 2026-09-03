@@ -76,5 +76,27 @@ export const api = {
       body: JSON.stringify({ uri }),
     })
   },
+  // ── Groups API ──
+  listGroups() {
+    return request('/api/groups')
+  },
+  createGroup(data) {
+    return request('/api/groups', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+  updateGroup(id, data) {
+    return request(`/api/groups/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  },
+  deleteGroup(id, name) {
+    const q = name ? `?name=${encodeURIComponent(name)}` : ''
+    return request(`/api/groups/${encodeURIComponent(id)}${q}`, {
+      method: 'DELETE',
+    })
+  },
 }
 

@@ -1,3 +1,5 @@
+import { api } from './api.js'
+
 const GROUPS_STORAGE_KEY = '2fa_vault_custom_groups'
 const ACCOUNT_META_KEY = '2fa_vault_account_meta'
 
@@ -40,6 +42,33 @@ export function saveCustomGroups(groups) {
   }
 }
 
+// Merge groups retrieved from database into local cache
+export function syncGroupsFromBackend(backendGroups) {
+  if (!Array.isArray(backendGroups)) return
+  const local = getCustomGroups()
+  const map = new Map()
+  // 1. Add local groups
+  local.forEach((g) => {
+    if (g && g.name) map.set(g.name.toLowerCase(), g)
+  })
+  // 2. Overlay backend groups
+  backendGroups.forEach((g) => {
+    if (g && g.name) {
+      const existing = map.get(g.name.toLowerCase()) || {}
+      map.set(g.name.toLowerCase(), {
+        ...existing,
+        id: g.id || existing.id || ('grp_' + Date.now()),
+        name: g.name,
+        logo: g.logo || existing.logo || '',
+        createdAt: g.created_at || g.createdAt || new Date().toISOString(),
+      })
+    }
+  })
+  const merged = Array.from(map.values())
+  saveCustomGroups(merged)
+  return merged
+}
+
 export function createCustomGroup(name, logo = '') {
   const trimmed = (name || '').trim()
   if (!trimmed) throw new Error('Group name cannot be empty')
@@ -54,6 +83,12 @@ export function createCustomGroup(name, logo = '') {
     createdAt: new Date().toISOString(),
   }
   saveCustomGroups([...groups, newGroup])
+
+  // Persist to database in background
+  api.createGroup({ id: newGroup.id, name: trimmed, logo }).catch((err) => {
+    console.warn('[groupsStorage] Failed to save group to DB:', err?.message)
+  })
+
   return newGroup
 }
 
@@ -90,6 +125,11 @@ export function renameCustomGroup(groupId, newName) {
     console.error('Failed to update account meta on group rename', e)
   }
 
+  // Persist rename to database in background
+  api.updateGroup(groupId, { name: trimmed }).catch((err) => {
+    console.warn('[groupsStorage] Failed to rename group in DB:', err?.message)
+  })
+
   notify()
   return trimmed
 }
@@ -119,6 +159,11 @@ export function deleteCustomGroup(groupId) {
   } catch (e) {
     console.error('Failed to clean account meta on group delete', e)
   }
+
+  // Persist delete to database in background
+  api.deleteGroup(groupId, oldName).catch((err) => {
+    console.warn('[groupsStorage] Failed to delete group from DB:', err?.message)
+  })
 
   notify()
 }

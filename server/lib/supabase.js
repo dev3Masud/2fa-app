@@ -234,3 +234,126 @@ export async function deleteAccountById(userId, id) {
   if (error) throw error
 }
 
+// ── Groups Database Methods ──────────────────────────────────────────────────
+
+export async function listGroupsByUser(userId) {
+  if (mocks.listGroupsByUser) return mocks.listGroupsByUser(userId)
+  const sb = getSupabase()
+  try {
+    const { data, error } = await sb
+      .from('groups')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true })
+    if (!error && Array.isArray(data)) return data
+    if (error && (error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('does not exist'))) {
+      // Table 'groups' does not exist yet; fall back to extracting groups from accounts
+      const accounts = await listAccountsByUser(userId)
+      const groupMap = new Map()
+      accounts.forEach((acc) => {
+        const gName = (acc.group_name || acc.group || '').trim()
+        if (gName && gName.toLowerCase() !== 'general' && !groupMap.has(gName.toLowerCase())) {
+          groupMap.set(gName.toLowerCase(), {
+            id: 'grp_' + gName.toLowerCase().replace(/\s+/g, '_'),
+            name: gName,
+            logo: acc.logo || '',
+            created_at: acc.created_at,
+          })
+        }
+      })
+      return Array.from(groupMap.values())
+    }
+    throw error
+  } catch (err) {
+    if (err.code === '42P01' || err.message?.includes('does not exist')) {
+      return []
+    }
+    throw err
+  }
+}
+
+export async function createGroup(userId, group) {
+  if (mocks.createGroup) return mocks.createGroup(userId, group)
+  const sb = getSupabase()
+  const payload = {
+    id: group.id || ('grp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7)),
+    user_id: userId,
+    name: group.name.trim(),
+    logo: group.logo || '',
+  }
+  try {
+    const { data, error } = await sb
+      .from('groups')
+      .insert(payload)
+      .select()
+      .single()
+    if (!error) return data
+    if (error.code === '42P01' || error.message?.includes('does not exist')) {
+      // Table doesn't exist yet; return payload as fallback
+      return { ...payload, created_at: new Date().toISOString() }
+    }
+    throw error
+  } catch (err) {
+    if (err.code === '42P01' || err.message?.includes('does not exist')) {
+      return { ...payload, created_at: new Date().toISOString() }
+    }
+    throw err
+  }
+}
+
+export async function updateGroup(userId, groupId, updates) {
+  if (mocks.updateGroup) return mocks.updateGroup(userId, groupId, updates)
+  const sb = getSupabase()
+  const payload = {}
+  if (updates.name !== undefined) payload.name = updates.name.trim()
+  if (updates.logo !== undefined) payload.logo = updates.logo
+
+  try {
+    const { data, error } = await sb
+      .from('groups')
+      .update(payload)
+      .eq('user_id', userId)
+      .eq('id', groupId)
+      .select()
+      .single()
+    if (!error) return data
+    if (error.code === '42P01' || error.message?.includes('does not exist')) {
+      return { id: groupId, ...payload }
+    }
+    throw error
+  } catch (err) {
+    if (err.code === '42P01' || err.message?.includes('does not exist')) {
+      return { id: groupId, ...payload }
+    }
+    throw err
+  }
+}
+
+export async function deleteGroup(userId, groupId, oldName) {
+  if (mocks.deleteGroup) return mocks.deleteGroup(userId, groupId, oldName)
+  const sb = getSupabase()
+  try {
+    await sb
+      .from('groups')
+      .delete()
+      .eq('user_id', userId)
+      .eq('id', groupId)
+  } catch (err) {
+    // ignore if table doesn't exist
+  }
+
+  // Also clear group assignment on all accounts belonging to this group
+  if (oldName) {
+    try {
+      await sb
+        .from('accounts')
+        .update({ group_name: '' })
+        .eq('user_id', userId)
+        .eq('group_name', oldName)
+    } catch (err) {
+      // ignore column error if column does not exist
+    }
+  }
+}
+
+

@@ -1,7 +1,28 @@
 -- ============================================================
--- 2FA Vault - Supabase Schema
+-- 2FA Vault - Supabase Schema & Migration
 -- Run this in Supabase SQL Editor (https://app.supabase.com)
 -- ============================================================
+
+-- ------------------------------------------------------------
+-- 🚀 RUN THIS FOR EXISTING DATABASES (One-Time Group Migration):
+-- ------------------------------------------------------------
+alter table public.accounts add column if not exists group_name text not null default '';
+alter table public.accounts add column if not exists logo text not null default '';
+update public.accounts set group_name = '' where group_name = 'General';
+
+create table if not exists public.groups (
+  id text primary key,
+  user_id uuid not null references public.users(id) on delete cascade,
+  name text not null,
+  logo text not null default '',
+  created_at timestamptz not null default now()
+);
+create index if not exists groups_user_id_idx on public.groups(user_id);
+alter table public.groups enable row level security;
+
+-- ------------------------------------------------------------
+-- Full Table Definitions (For New Setups):
+-- ------------------------------------------------------------
 
 -- Users table: stores admin credentials (single-user, but extensible)
 create table if not exists public.users (
@@ -30,7 +51,7 @@ create table if not exists public.accounts (
   period integer not null default 30 check (period between 15 and 60),
   algorithm text not null default 'SHA1' check (algorithm in ('SHA1', 'SHA256', 'SHA512')),
   counter bigint not null default 0,
-  group_name text not null default 'General',
+  group_name text not null default '',
   logo text not null default '',
   -- Encrypted TOTP secret (AES-256-GCM with vault key)
   ciphertext text not null, -- base64
@@ -40,11 +61,7 @@ create table if not exists public.accounts (
   updated_at timestamptz not null default now()
 );
 
--- For existing databases, run these migrations:
--- alter table public.accounts add column if not exists group_name text not null default 'General';
--- alter table public.accounts add column if not exists logo text not null default '';
-
--- Index for fast lookup
+-- Indexes for fast lookup
 create index if not exists accounts_user_id_idx on public.accounts(user_id);
 create index if not exists accounts_created_at_idx on public.accounts(user_id, created_at desc);
 
@@ -70,17 +87,12 @@ create trigger trg_accounts_updated_at
 -- ============================================================
 -- Row Level Security
 -- We use the SERVICE ROLE key from the server, so RLS is bypassed
--- in our Netlify Functions. But we still enable RLS as a safety
+-- in our backend functions. But we still enable RLS as a safety
 -- net in case the anon key is ever leaked.
 -- ============================================================
 
 alter table public.users enable row level security;
 alter table public.accounts enable row level security;
+alter table public.groups enable row level security;
 
--- No policies = no public access. Service role bypasses RLS.
--- (This means the anon key cannot read or write anything.)
-
--- ============================================================
--- Done. The app will bootstrap the first user from ADMIN_USER /
--- ADMIN_PASS env vars on first login attempt.
--- ============================================================
+-- No public policies = no public access. Service role bypasses RLS.
