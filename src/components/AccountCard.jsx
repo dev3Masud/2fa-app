@@ -1,57 +1,100 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Countdown from './Countdown.jsx'
+import Logo from './Logo.jsx'
 import { api } from '../lib/api.js'
+import { issuerMeta } from '../lib/branding.js'
 
-export default function AccountCard({ account, onDelete }) {
+export default function AccountCard({ account, onDelete, onError }) {
   const [code, setCode] = useState(null)
   const [remaining, setRemaining] = useState(account.period)
   const [loading, setLoading] = useState(false)
   const [showCopied, setShowCopied] = useState(false)
+  const [error, setError] = useState('')
+  const meta = issuerMeta(account.issuer || account.label)
+  const tickRef = useRef(null)
+  const mountedRef = useRef(true)
 
-  async function fetchCode() {
+  const fetchCode = useCallback(async () => {
+    if (!mountedRef.current) return
     setLoading(true)
+    setError('')
     try {
       const res = await api.getCode(account.id)
+      if (!mountedRef.current) return
       setCode(res.code)
       setRemaining(res.remaining ?? account.period)
     } catch (e) {
-      console.error(e)
+      if (mountedRef.current) {
+        setError(e.message)
+        if (onError) onError(e)
+      }
     } finally {
-      setLoading(false)
+      if (mountedRef.current) setLoading(false)
     }
-  }
+  }, [account.id, account.period, onError])
+
+  // Auto-fetch on mount
+  useEffect(() => {
+    mountedRef.current = true
+    fetchCode()
+    return () => {
+      mountedRef.current = false
+    }
+  }, [fetchCode])
+
+  // Live tick: decrement remaining every second
+  useEffect(() => {
+    if (tickRef.current) clearInterval(tickRef.current)
+    if (code == null) return
+    tickRef.current = setInterval(() => {
+      setRemaining((r) => {
+        if (r <= 1) {
+          // Timer hit zero — fetch a new code
+          fetchCode()
+          return account.period
+        }
+        return r - 1
+      })
+    }, 1000)
+    return () => {
+      if (tickRef.current) clearInterval(tickRef.current)
+    }
+  }, [code, account.period, fetchCode])
 
   function copyCode() {
     if (!code) return
-    navigator.clipboard.writeText(code)
+    navigator.clipboard.writeText(code).catch(() => {
+      // Fallback for non-HTTPS contexts
+      const ta = document.createElement('textarea')
+      ta.value = code
+      document.body.appendChild(ta)
+      ta.select()
+      try { document.execCommand('copy') } catch (e) { /* clipboard not available */ }
+      document.body.removeChild(ta)
+    })
     setShowCopied(true)
     setTimeout(() => setShowCopied(false), 1500)
   }
 
-  async function del() {
-    if (!confirm(`Delete ${account.label}?`)) return
-    try {
-      await api.deleteAccount(account.id)
-      onDelete(account.id)
-    } catch (e) {
-      alert(e.message)
-    }
-  }
-
   return (
     <div className="account-card">
+      <Logo meta={meta} size={40} />
       <div className="account-info">
-        {account.issuer && <div className="account-issuer">{account.issuer}</div>}
+        <div className="account-issuer">{meta.name}</div>
         <div className="account-label">{account.label}</div>
-        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+        <div className="account-meta">
           {account.type.toUpperCase()} · {account.digits}d · {account.algorithm}
         </div>
       </div>
       <div className="code-block">
-        {code ? (
+        {error ? (
+          <div className="code error-code" onClick={fetchCode} title="Click to retry">
+            Error
+          </div>
+        ) : code ? (
           <>
             <div
-              className={`code ${remaining < 2 ? 'expired' : ''}`}
+              className={`code ${remaining < 3 ? 'expiring' : ''} ${loading ? 'refreshing' : ''}`}
               onClick={copyCode}
               title="Click to copy"
             >
@@ -60,15 +103,13 @@ export default function AccountCard({ account, onDelete }) {
             <Countdown remaining={remaining} period={account.period} />
           </>
         ) : (
-          <button className="btn" onClick={fetchCode} disabled={loading}>
-            {loading ? '…' : 'Show code'}
-          </button>
+          <div className="code-placeholder">…</div>
         )}
         <button
-          className="btn btn-ghost btn-danger"
-          onClick={del}
+          className="btn btn-ghost btn-icon btn-danger"
+          onClick={() => onDelete(account)}
           title="Delete"
-          style={{ padding: '4px 8px' }}
+          aria-label="Delete"
         >
           ×
         </button>
