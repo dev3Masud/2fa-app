@@ -27,8 +27,8 @@ app.use(
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"], // needed for Vite's injected styles
-        imgSrc: ["'self'", 'data:'],
-        connectSrc: ["'self'", 'https://*.supabase.co'],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'", 'https://*.supabase.co', 'https://*.vercel-insights.com', 'https://*.vercel-analytics.com'],
         frameSrc: ["'none'"],
         objectSrc: ["'none'"],
       },

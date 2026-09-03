@@ -42,20 +42,8 @@
   "engines": {
     "node": "24.x"
   },
-  "npm": {
-    "allowScripts": [
-      "esbuild"
-    ]
-  },
-  "pnpm": {
-    "allowScripts": [
-      "esbuild"
-    ]
-  },
-  "allowedDependencies": [
-    "esbuild"
-  ],
-  "trustedDependencies": [
-    "esbuild"
-  ]
+  "packageManager": "npm@11.5.2",
+  "optionalDependencies": {
+    "@esbuild/linux-x64": "0.21.5"
+  }
 }

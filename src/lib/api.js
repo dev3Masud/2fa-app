@@ -48,10 +48,21 @@ export const api = {
   deleteAccount(id) {
     return request(`/api/accounts/${encodeURIComponent(id)}`, { method: 'DELETE' })
   },
+  // PATCH /api/accounts/:id
+  updateAccount(id, data) {
+    return request(`/api/accounts/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  },
   // Updated: GET now uses REST path param /api/totp/:id
   getCode(id, counter) {
     const q = counter != null ? `?counter=${counter}` : ''
     return request(`/api/totp/${encodeURIComponent(id)}${q}`)
+  },
+  // GET /api/totp — batch fetch all live codes
+  getAllCodes() {
+    return request('/api/totp')
   },
   parseQr(dataUri) {
     return request('/api/qr-parse', {
@@ -66,3 +77,4 @@ export const api = {
     })
   },
 }
+

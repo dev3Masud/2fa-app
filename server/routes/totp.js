@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { TOTP, HOTP, Secret } from 'otpauth'
 import { decryptSecret } from '../lib/crypto.js'
-import { getAccountById } from '../lib/supabase.js'
+import { getAccountById, listAccountsByUser } from '../lib/supabase.js'
 import { getVaultKeyFromReq, getUserIdFromReq } from '../lib/auth.js'
 
 // ── L3 FIX: UUID format validation ───────────────────────────────────────────
@@ -9,6 +9,37 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const router = Router()
+
+// GET /api/totp — batch fetch live codes for all accounts of the user
+router.get('/', async (req, res) => {
+  const vaultKey = getVaultKeyFromReq(req)
+  const userId = getUserIdFromReq(req)
+  if (!vaultKey || !userId) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+  try {
+    const rows = await listAccountsByUser(userId)
+    const codes = {}
+    for (const rec of rows) {
+      try {
+        const result = generateCode(rec, vaultKey)
+        codes[rec.id] = {
+          code: result.code,
+          remaining: result.remaining,
+          counter: result.counter,
+          period: rec.period,
+        }
+      } catch (err) {
+        console.error(`[totp] batch code failed for account ${rec.id}:`, err?.message)
+      }
+    }
+    return res.status(200).json({ codes })
+  } catch (err) {
+    console.error('[totp] batch list error:', err?.message)
+    return res.status(500).json({ error: 'Failed to generate codes' })
+  }
+})
+
 
 function generateCode(rec, vaultKey, counter) {
   const encBlob = {

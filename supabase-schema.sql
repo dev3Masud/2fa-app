@@ -30,6 +30,8 @@ create table if not exists public.accounts (
   period integer not null default 30 check (period between 15 and 60),
   algorithm text not null default 'SHA1' check (algorithm in ('SHA1', 'SHA256', 'SHA512')),
   counter bigint not null default 0,
+  group_name text not null default 'General',
+  logo text not null default '',
   -- Encrypted TOTP secret (AES-256-GCM with vault key)
   ciphertext text not null, -- base64
   iv text not null,         -- base64
@@ -37,6 +39,10 @@ create table if not exists public.accounts (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- For existing databases, run these migrations:
+-- alter table public.accounts add column if not exists group_name text not null default 'General';
+-- alter table public.accounts add column if not exists logo text not null default '';
 
 -- Index for fast lookup
 create index if not exists accounts_user_id_idx on public.accounts(user_id);

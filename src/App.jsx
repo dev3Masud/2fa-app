@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import Login from './pages/Login.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import { api } from './lib/api.js'
@@ -20,9 +22,12 @@ export default function App() {
     )
   }
 
-  if (!authed) {
-    return <Login onLogin={() => setAuthed(true)} />
-  }
-
-  return <Dashboard />
+  return (
+    <>
+      {!authed ? <Login onLogin={() => setAuthed(true)} /> : <Dashboard />}
+      <Analytics />
+      <SpeedInsights />
+    </>
+  )
 }
+
