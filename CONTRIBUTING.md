@@ -61,8 +61,8 @@ Feature requests and improvements are welcome! Please open an issue outlining:
 ## Development Setup
 
 ### Prerequisites
-* **Node.js** 20.x or 24.x
-* **npm** 10+
+* **Node.js** 24.x (see `engines` in `package.json`)
+* **npm** 10+ or 11+
 * A free [Supabase](https://supabase.com) project for PostgreSQL database storage.
 
 ### Environment Configuration

@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Live Demo](https://img.shields.io/badge/Demo-2fa--app--five.vercel.app-6366f1?logo=vercel)](https://2fa-app-five.vercel.app)
-[![Node Version](https://img.shields.io/badge/node-%3E%3D20.x-green.svg)](package.json)
+[![Node Version](https://img.shields.io/badge/node-24.x-green.svg)](package.json)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Security Policy](https://img.shields.io/badge/Security-AES--256--GCM-red.svg)](SECURITY.md)
 
@@ -143,7 +143,7 @@ The Express server is a standard Node.js app — deploy to any host that runs No
 #### Docker (example)
 
 ```dockerfile
-FROM node:20-alpine
+FROM node:24-alpine
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev

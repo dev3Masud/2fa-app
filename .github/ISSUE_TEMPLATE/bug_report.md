@@ -25,7 +25,7 @@ If applicable, add screenshots or console output to help explain your problem.
 ## Environment
 - **Device / OS**: [e.g. macOS 14.5, Ubuntu 24.04, Windows 11]
 - **Browser**: [e.g. Chrome 126, Firefox 128, Safari 17]
-- **Node.js Version**: [e.g. 20.x, 24.x]
+- **Node.js Version**: [e.g. 24.x]
 - **Deployment Platform**: [e.g. Vercel, Self-hosted VPS, Docker]
 
 ## Additional Context
