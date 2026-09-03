@@ -33,7 +33,9 @@ export function publicAccount(row) {
     period: row.period,
     algorithm: row.algorithm,
     counter: row.counter ?? 0,
-    group: row.group_name || row.group || 'General',
+    group: row.group_name !== undefined && row.group_name !== null
+      ? row.group_name
+      : (row.group || ''),
     logo: row.logo || '',
     createdAt: row.created_at,
   }
@@ -49,7 +51,9 @@ export function serializeAccount(row) {
     period: row.period,
     algorithm: row.algorithm,
     counter: row.counter ?? 0,
-    group: row.group_name || row.group || 'General',
+    group: row.group_name !== undefined && row.group_name !== null
+      ? row.group_name
+      : (row.group || ''),
     logo: row.logo || '',
     createdAt: row.created_at,
     encryptedSecret: {

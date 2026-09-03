@@ -73,13 +73,27 @@ export default function Dashboard() {
       const res = await api.listAccounts()
       const meta = getAllAccountMeta()
 
-      // Merge backend accounts with local group/logo metadata if missing
+      // Merge backend accounts with local group/logo metadata
       const merged = (res.accounts || []).map((acc) => {
-        const local = meta[acc.id] || {}
+        const local = meta[acc.id]
+        let groupVal = ''
+        if (local && typeof local.group === 'string') {
+          groupVal = local.group
+        } else if (acc.group && acc.group.toLowerCase() !== 'general') {
+          groupVal = acc.group
+        }
+
+        let logoVal = ''
+        if (local && typeof local.logo === 'string') {
+          logoVal = local.logo
+        } else if (acc.logo) {
+          logoVal = acc.logo
+        }
+
         return {
           ...acc,
-          group: acc.group || local.group || '',
-          logo: acc.logo || local.logo || '',
+          group: groupVal,
+          logo: logoVal,
         }
       })
 
@@ -87,7 +101,7 @@ export default function Dashboard() {
       const existingGroups = getCustomGroups()
       const existingNames = new Set(existingGroups.map((g) => g.name.toLowerCase()))
       merged.forEach((a) => {
-        if (a.group && !existingNames.has(a.group.toLowerCase())) {
+        if (a.group && a.group.toLowerCase() !== 'general' && !existingNames.has(a.group.toLowerCase())) {
           try {
             createCustomGroup(a.group, a.logo || '')
             existingNames.add(a.group.toLowerCase())
@@ -297,12 +311,15 @@ export default function Dashboard() {
   // ── Group Actions ─────────────────────────────────────────────────────────
   function handleRenameGroup(groupId, newName) {
     try {
+      const old = customGroups.find((g) => g.id === groupId)?.name
       renameCustomGroup(groupId, newName)
-      // Update accounts in state
+      // Update accounts in state and sync with backend
       setAccounts((prev) =>
         prev.map((a) => {
-          const old = customGroups.find((g) => g.id === groupId)?.name
           if (a.group === old) {
+            api.updateAccount(a.id, { group_name: newName }).catch((err) =>
+              console.error('Failed to sync renamed group on server', err)
+            )
             return { ...a, group: newName }
           }
           return a
@@ -317,7 +334,15 @@ export default function Dashboard() {
     const old = customGroups.find((g) => g.id === groupId)?.name
     deleteCustomGroup(groupId)
     setAccounts((prev) =>
-      prev.map((a) => (a.group === old ? { ...a, group: '' } : a))
+      prev.map((a) => {
+        if (a.group === old) {
+          api.updateAccount(a.id, { group_name: '' }).catch((err) =>
+            console.error('Failed to clear group on server', err)
+          )
+          return { ...a, group: '' }
+        }
+        return a
+      })
     )
   }
 

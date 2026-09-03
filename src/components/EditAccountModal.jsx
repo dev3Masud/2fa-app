@@ -1,9 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { BRAND_ICONS, ServiceLogo, detectService } from '../lib/icons.jsx'
-import { getCustomGroups, setAccountMeta } from '../lib/groupsStorage.js'
+import {
+  getCustomGroups,
+  createCustomGroup,
+  setAccountMeta,
+  subscribeGroups,
+} from '../lib/groupsStorage.js'
 import { api } from '../lib/api.js'
 import IconPickerModal from './IconPickerModal.jsx'
+import GroupModal from './GroupModal.jsx'
 
 export default function EditAccountModal({
   isOpen,
@@ -15,13 +21,38 @@ export default function EditAccountModal({
   const [issuer, setIssuer] = useState(account?.issuer || '')
   const [group, setGroup] = useState(account?.group || '')
   const [logo, setLogo] = useState(account?.logo || '')
+  const [customGroups, setCustomGroups] = useState([])
   const [showIconPicker, setShowIconPicker] = useState(false)
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
 
+  // Sync state whenever modal is opened or target account changes
+  useEffect(() => {
+    if (isOpen && account) {
+      setLabel(account.label || '')
+      setIssuer(account.issuer || '')
+      setGroup(account.group || '')
+      setLogo(account.logo || '')
+      setCustomGroups(getCustomGroups())
+      setErr('')
+    }
+  }, [isOpen, account])
+
+  // Reactively track groups created or renamed
+  useEffect(() => {
+    setCustomGroups(getCustomGroups())
+    const unsubscribe = subscribeGroups(() => {
+      setCustomGroups(getCustomGroups())
+    })
+    return unsubscribe
+  }, [])
+
   if (!isOpen || !account) return null
 
-  const customGroups = getCustomGroups()
+  // Ensure current group is selectable even if not yet saved in customGroups
+  const groupExistsInList =
+    !group || customGroups.some((g) => g.name.toLowerCase() === group.toLowerCase())
 
   function handleIssuerChange(e) {
     const val = e.target.value
@@ -51,12 +82,18 @@ export default function EditAccountModal({
     try {
       const res = await api.updateAccount(account.id, payload)
       setAccountMeta(account.id, { group, logo })
-      onUpdated(res.account || { ...account, ...payload, group })
+      const merged = {
+        ...account,
+        ...(res?.account || {}),
+        group,
+        logo,
+      }
+      onUpdated(merged)
       onClose()
     } catch (e) {
       console.error(e)
       setAccountMeta(account.id, { group, logo })
-      onUpdated({ ...account, ...payload, group })
+      onUpdated({ ...account, ...payload, group, logo })
       onClose()
     } finally {
       setLoading(false)
@@ -115,14 +152,30 @@ export default function EditAccountModal({
               </div>
             </div>
 
+            {/* Group / Category Selector with inline Create Group */}
             <div className="field">
-              <label className="label">Group / Category</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label className="label" style={{ margin: 0 }}>Group / Category</label>
+                <button
+                  type="button"
+                  className="btn-link"
+                  style={{ fontSize: 12, padding: 0 }}
+                  onClick={() => setShowCreateGroupModal(true)}
+                >
+                  + Create New Group
+                </button>
+              </div>
               <select
                 value={group}
                 onChange={(e) => setGroup(e.target.value)}
                 className="input"
               >
                 <option value="">(No Group / Ungrouped)</option>
+                {!groupExistsInList && (
+                  <option value={group}>
+                    {group} (Current)
+                  </option>
+                )}
                 {customGroups.map((g) => (
                   <option key={g.id} value={g.name}>
                     {g.name}
@@ -160,6 +213,20 @@ export default function EditAccountModal({
         onSelect={(newLogo) => setLogo(newLogo)}
         onClose={() => setShowIconPicker(false)}
       />
+
+      {/* Inline Create Group Modal */}
+      {showCreateGroupModal && (
+        <GroupModal
+          isOpen={showCreateGroupModal}
+          onSave={(newName, newLogo) => {
+            const created = createCustomGroup(newName, newLogo)
+            setCustomGroups(getCustomGroups())
+            setGroup(created.name)
+            setShowCreateGroupModal(false)
+          }}
+          onClose={() => setShowCreateGroupModal(false)}
+        />
+      )}
     </>
   )
 

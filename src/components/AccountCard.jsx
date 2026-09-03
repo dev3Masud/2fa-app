@@ -91,7 +91,17 @@ export default function AccountCard({
                 {account.label}
               </span>
               {account.group && (
-                <span className="account-group-tag">{account.group}</span>
+                <span
+                  className="account-group-tag"
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowEditModal(true)
+                  }}
+                  title="Click to change group"
+                >
+                  {account.group}
+                </span>
               )}
             </div>
             <div className="account-meta-text">

@@ -744,19 +744,89 @@ html, body, #root {
 
 .delete-modal {
   text-align: center;
-  max-width: 400px;
+  max-width: 440px;
 }
 
 .delete-modal-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--danger-bg);
-  color: var(--danger);
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #ef4444;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 14px;
+  margin: 0 auto 16px;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
+}
+
+.delete-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 14px 0 6px;
+}
+
+.delete-input-icon {
+  position: absolute;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ef4444;
+  pointer-events: none;
+  opacity: 0.85;
+  transition: all 0.2s ease;
+}
+
+.delete-confirm-input {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1.5px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px 12px 42px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  outline: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.delete-confirm-input::placeholder {
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  opacity: 0.6;
+}
+
+.delete-confirm-input:focus {
+  border-color: #ef4444;
+  background: rgba(15, 23, 42, 0.85);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.22), 0 2px 12px rgba(239, 68, 68, 0.12);
+}
+
+.delete-confirm-input.confirmed {
+  border-color: #10b981;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.06);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2), 0 2px 14px rgba(16, 185, 129, 0.12);
+}
+
+.delete-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  min-height: 22px;
+  margin-top: 6px;
+  margin-bottom: 14px;
+  padding: 0 2px;
 }
 
 @keyframes fadeIn {
