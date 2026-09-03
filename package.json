@@ -14,6 +14,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.114.0",
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "bcryptjs": "^2.4.3",
     "concurrently": "^9.1.2",
     "cors": "^2.8.5",
@@ -38,7 +40,17 @@
     "vite": "^5.4.10"
   },
   "engines": {
-    "node": ">=20"
+    "node": "20.x"
+  },
+  "npm": {
+    "allowScripts": [
+      "esbuild"
+    ]
+  },
+  "pnpm": {
+    "allowScripts": [
+      "esbuild"
+    ]
   },
   "allowedDependencies": [
     "esbuild"
