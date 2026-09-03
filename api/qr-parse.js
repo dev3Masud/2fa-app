@@ -1,6 +1,6 @@
 import jsQR from 'jsqr'
 import { PNG } from 'pngjs'
-import { errorResponse, jsonResponse, getVaultKeyFromEvent } from './lib/auth.js'
+import { getVaultKeyFromEvent } from './lib/auth.js'
 
 function parseOtpAuth(uri) {
   if (!uri || !uri.startsWith('otpauth://')) {
@@ -49,54 +49,43 @@ function readPngPixels(base64) {
   })
 }
 
-export async function handler(event) {
-  if (event.httpMethod !== 'POST') {
-    return errorResponse(405, 'Method not allowed')
+function getBody(req) {
+  if (!req.body) return {}
+  if (typeof req.body === 'string') {
+    try { return JSON.parse(req.body) } catch { return {} }
   }
-  const vaultKey = getVaultKeyFromEvent(event)
-  if (!vaultKey) return errorResponse(401, 'Unauthorized')
+  return req.body
+}
 
-  const contentType = event.headers['content-type'] || event.headers['Content-Type'] || ''
-  let dataUri = null
-  let uri = null
-
-  if (contentType.includes('application/json')) {
-    try {
-      const body = JSON.parse(event.body || '{}')
-      dataUri = body.dataUri || null
-      uri = body.uri || null
-    } catch {
-      return errorResponse(400, 'Invalid JSON')
-    }
-  } else if (contentType.includes('multipart/form-data') || contentType.includes('application/octet-stream')) {
-    const b64 = Buffer.from(event.body || '', event.isBase64Encoded ? 'base64' : 'utf8').toString('base64')
-    dataUri = `data:image/png;base64,${b64}`
-  } else {
-    try {
-      const body = JSON.parse(event.body || '{}')
-      dataUri = body.dataUri || null
-      uri = body.uri || null
-    } catch {
-      // ignore
-    }
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' })
   }
+  const vaultKey = getVaultKeyFromEvent(req)
+  if (!vaultKey) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+
+  const body = getBody(req)
+  const dataUri = body.dataUri || null
+  const uri = body.uri || null
 
   if (uri) {
     try {
       const parsed = parseOtpAuth(uri)
-      return jsonResponse(200, { data: parsed })
+      return res.status(200).json({ data: parsed })
     } catch (e) {
-      return errorResponse(400, e.message)
+      return res.status(400).json({ error: e.message })
     }
   }
 
   if (!dataUri) {
-    return errorResponse(400, 'Provide dataUri or uri')
+    return res.status(400).json({ error: 'Provide dataUri or uri' })
   }
 
   const match = dataUri.match(/^data:image\/(png|jpeg|jpg);base64,(.+)$/)
   if (!match) {
-    return errorResponse(400, 'Only PNG/JPEG data URIs supported for image upload')
+    return res.status(400).json({ error: 'Only PNG/JPEG data URIs supported for image upload' })
   }
   const mime = match[1]
   const b64 = match[2]
@@ -105,14 +94,14 @@ export async function handler(event) {
   if (mime === 'png') {
     try {
       imageData = await readPngPixels(b64)
-    } catch (e) {
-      return errorResponse(400, 'Failed to decode PNG')
+    } catch {
+      return res.status(400).json({ error: 'Failed to decode PNG' })
     }
   } else {
-    return errorResponse(400, 'JPEG support requires canvas; please use PNG or paste the otpauth URI instead')
+    return res.status(400).json({ error: 'JPEG support requires canvas; please use PNG or paste the otpauth URI instead' })
   }
   if (!imageData) {
-    return errorResponse(400, 'PNG decoder not available')
+    return res.status(400).json({ error: 'PNG decoder not available' })
   }
 
   const code = jsQR(
@@ -120,12 +109,12 @@ export async function handler(event) {
     imageData.width,
     imageData.height
   )
-  if (!code) return errorResponse(400, 'No QR code detected in image')
+  if (!code) return res.status(400).json({ error: 'No QR code detected in image' })
 
   try {
     const parsed = parseOtpAuth(code.data)
-    return jsonResponse(200, { data: parsed })
+    return res.status(200).json({ data: parsed })
   } catch (e) {
-    return errorResponse(400, e.message)
+    return res.status(400).json({ error: e.message })
   }
 }

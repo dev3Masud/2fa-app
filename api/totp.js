@@ -1,12 +1,7 @@
 import { TOTP, HOTP, Secret } from 'otpauth'
 import { decryptSecret } from './lib/crypto.js'
 import { getAccountById } from './lib/supabase.js'
-import {
-  getVaultKeyFromEvent,
-  getUserIdFromEvent,
-  jsonResponse,
-  errorResponse,
-} from './lib/auth.js'
+import { getVaultKeyFromEvent, getUserIdFromEvent } from './lib/auth.js'
 
 function generateCode(rec, vaultKey, counter) {
   const encBlob = {
@@ -36,20 +31,23 @@ function generateCode(rec, vaultKey, counter) {
   return { code: totp.generate(), remaining, counter: null }
 }
 
-export async function handler(event) {
-  if (event.httpMethod !== 'GET') return errorResponse(405, 'Method not allowed')
-  const vaultKey = getVaultKeyFromEvent(event)
-  const userId = getUserIdFromEvent(event)
-  if (!vaultKey || !userId) return errorResponse(401, 'Unauthorized')
-  const qs = event.queryStringParameters || {}
-  const id = qs.id
-  if (!id) return errorResponse(400, 'id is required')
-  const rec = await getAccountById(userId, id)
-  if (!rec) return errorResponse(404, 'Not found')
-  const counter = qs.counter != null ? Number(qs.counter) : undefined
+export default async function handler(req, res) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
+  const vaultKey = getVaultKeyFromEvent(req)
+  const userId = getUserIdFromEvent(req)
+  if (!vaultKey || !userId) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+  const id = req.query?.id
+  if (!id) return res.status(400).json({ error: 'id is required' })
   try {
+    const rec = await getAccountById(userId, id)
+    if (!rec) return res.status(404).json({ error: 'Not found' })
+    const counter = req.query?.counter != null ? Number(req.query.counter) : undefined
     const result = generateCode(rec, vaultKey, counter)
-    return jsonResponse(200, {
+    return res.status(200).json({
       id,
       code: result.code,
       remaining: result.remaining,
@@ -58,6 +56,6 @@ export async function handler(event) {
     })
   } catch (err) {
     console.error('totp error', err)
-    return errorResponse(500, 'Failed to generate code')
+    return res.status(500).json({ error: 'Failed to generate code' })
   }
 }

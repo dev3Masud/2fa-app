@@ -67,7 +67,7 @@ export function buildCookie(token) {
     'SameSite=Strict',
     `Max-Age=${SESSION_TTL_SECONDS}`,
   ]
-  if (process.env.NETLIFY || process.env.NODE_ENV === 'production') {
+  if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
     parts.push('Secure')
   }
   return parts.join('; ')
@@ -81,7 +81,7 @@ export function buildClearCookie() {
     'SameSite=Strict',
     'Max-Age=0',
   ]
-  if (process.env.NETLIFY || process.env.NODE_ENV === 'production') {
+  if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
     parts.push('Secure')
   }
   return parts.join('; ')

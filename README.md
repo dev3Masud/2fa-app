@@ -1,8 +1,6 @@
 # 2FA Vault
 
-A self-hosted 2FA (TOTP/HOTP) manager that runs on Netlify with Supabase for storage. Zero-knowledge encryption: your password is the master key.
-
-**Live:** https://2fa-netlify-app.netlify.app
+A self-hosted 2FA (TOTP/HOTP) manager that runs on Vercel with Supabase for storage. Zero-knowledge encryption: your password is the master key.
 
 ## Features
 
@@ -17,7 +15,7 @@ A self-hosted 2FA (TOTP/HOTP) manager that runs on Netlify with Supabase for sto
 ## Architecture
 
 - **Frontend:** React + Vite (static SPA)
-- **Backend:** Netlify Functions (Node, esbuild)
+- **Backend:** Vercel Serverless Functions (`/api/*`)
 - **Storage:** Supabase Postgres (rows are encrypted client-side with vault key)
 - **Crypto:** PBKDF2 (310k iterations, SHA-256) → vault key → AES-256-GCM per secret
 
@@ -56,9 +54,14 @@ A self-hosted 2FA (TOTP/HOTP) manager that runs on Netlify with Supabase for sto
    - **service_role** key (NOT the anon key) → this is your `SUPABASE_SERVICE_ROLE_KEY`
    - ⚠️ The service_role key bypasses RLS. Never expose it to the frontend.
 
-### 4. Set Netlify environment variables
+### 4. Deploy to Vercel
 
-In Netlify dashboard → **Site settings** → **Environment variables**, add:
+**Option A: Vercel dashboard (easiest)**
+
+1. Go to https://vercel.com → **Add New…** → **Project**
+2. Import this repo
+3. Vercel auto-detects Vite framework
+4. Before clicking Deploy, expand **Environment Variables** and add:
 
 ```
 SESSION_SECRET=<openssl rand -hex 32>
@@ -70,13 +73,25 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
 
 **All five are required** — the app will refuse to serve requests if any are missing.
 
-### 5. Deploy
+5. Click **Deploy**
+
+**Option B: Vercel CLI**
 
 ```bash
-git push origin main
+npm i -g vercel
+vercel
+# answer prompts, then:
+vercel env add SESSION_SECRET
+vercel env add ADMIN_USER
+vercel env add ADMIN_PASS
+vercel env add SUPABASE_URL
+vercel env add SUPABASE_SERVICE_ROLE_KEY
+vercel --prod
 ```
 
-Netlify auto-builds and deploys. Visit the site, sign in with `ADMIN_USER` / `ADMIN_PASS` — the first login creates your user row in Supabase and initializes the vault.
+### 5. Sign in
+
+Visit your deployed URL, sign in with `ADMIN_USER` / `ADMIN_PASS` — the first login creates your user row in Supabase and initializes the vault.
 
 ## Local development
 
@@ -84,25 +99,32 @@ Netlify auto-builds and deploys. Visit the site, sign in with `ADMIN_USER` / `AD
 npm install
 cp .env.example .env
 # fill in SESSION_SECRET, ADMIN_USER, ADMIN_PASS, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-npx netlify dev
 ```
 
-The app runs at `http://localhost:8888` with functions proxied from `/api/*`.
+For local dev you need both the frontend and API running. Vercel provides `vercel dev` which runs both:
+
+```bash
+npm i -g vercel
+vercel dev
+```
+
+App runs at `http://localhost:3000`, functions proxied at `/api/*`.
 
 ## Project structure
 
 ```
-netlify.toml              # Build + function config + SPA redirect
-netlify/functions/
-  login.js                # Auth + bootstrap user
+vercel.json              # Vercel build + SPA rewrite config
+api/
+  login.js               # Auth + bootstrap user
   logout.js
-  accounts.js             # GET/POST/DELETE accounts
-  totp.js                 # Generate current code
-  qr-parse.js             # Parse QR image or otpauth URI
-  lib/crypto.js           # PBKDF2 + AES-GCM primitives
-  lib/supabase.js         # Supabase client + queries
-  lib/users.js            # User bootstrap + auth + vault unlock
-  lib/auth.js             # JWT + cookie + session vault-key wrap
+  accounts.js            # GET/POST/DELETE accounts
+  totp.js                # Generate current code
+  qr-parse.js            # Parse QR image or otpauth URI
+  mode.js                # Tells frontend which mode is active
+  lib/crypto.js          # PBKDF2 + AES-GCM primitives
+  lib/supabase.js        # Supabase client + queries
+  lib/users.js           # User bootstrap + auth + vault unlock
+  lib/auth.js            # JWT + cookie + session vault-key wrap
 src/
   App.jsx
   main.jsx
@@ -113,8 +135,8 @@ src/
   components/Countdown.jsx
   lib/api.js
   styles.css
-supabase-schema.sql       # Run this in Supabase SQL editor
-.env.example              # Copy to .env
+supabase-schema.sql      # Run this in Supabase SQL editor
+.env.example             # Copy to .env
 ```
 
 ## Trade-offs (intentional)
