@@ -28,9 +28,39 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* ── Custom Sleek Dark Scrollbar System ───────────────── */
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-hover) transparent;
 }
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 
 html, body, #root {
   margin: 0;
@@ -827,7 +857,142 @@ html, body, #root {
   text-overflow: ellipsis;
 }
 
+/* ── Icon Picker Trigger & Popup Modal ──────────────────── */
+.icon-picker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.icon-picker-trigger:hover {
+  border-color: var(--accent);
+  background: var(--panel-2);
+}
+
+.icon-picker-trigger-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon-picker-modal {
+  max-width: 580px;
+  width: 95%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.icon-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.icon-search-box input {
+  width: 100%;
+  padding: 10px 36px 10px 36px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+}
+.icon-search-box input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.icon-search-box .icon-search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--muted);
+}
+
+.icon-categories-bar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.icon-category-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.icon-category-btn:hover {
+  color: var(--text);
+  border-color: var(--border-hover);
+}
+.icon-category-btn.active {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
+.icon-grid-scroll {
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.icon-grid-large {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.icon-item-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.icon-item-card:hover {
+  background: var(--panel-2);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.icon-item-card.selected {
+  background: var(--panel-3);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.icon-item-card span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
 /* ── Empty State & Loading Spinner ──────────────────────── */
+
 .empty {
   text-align: center;
   color: var(--muted);

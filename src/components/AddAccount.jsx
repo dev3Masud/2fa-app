@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import jsQR from 'jsqr'
 import { api } from '../lib/api.js'
 import { BRAND_ICONS, ServiceLogo, detectService } from '../lib/icons.jsx'
 import { getCustomGroups, createCustomGroup, setAccountMeta } from '../lib/groupsStorage.js'
 import GroupModal from './GroupModal.jsx'
+import IconPickerModal from './IconPickerModal.jsx'
 
 export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
   const [tab, setTab] = useState('qr')
@@ -11,7 +13,6 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
   const [err, setErr] = useState('')
   const [loading, setLoading] = useState(false)
   const fileRef = useRef()
-  const logoFileRef = useRef()
 
   const [form, setForm] = useState({
     label: '',
@@ -27,9 +28,8 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
   })
   const [uri, setUri] = useState('')
 
-  // Logo selection tab inside manual tab
-  const [logoTab, setLogoTab] = useState('preset')
-  const [customLogoUrl, setCustomLogoUrl] = useState('')
+  // Icon picker popup modal
+  const [showIconPicker, setShowIconPicker] = useState(false)
 
   // Custom Groups state
   const [customGroups, setCustomGroups] = useState([])
@@ -42,7 +42,6 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
   function update(k, v) {
     setForm((f) => {
       const next = { ...f, [k]: v }
-      // Auto-detect logo if issuer changes and user hasn't explicitly set a logo
       if (k === 'issuer' && (!f.logo || BRAND_ICONS[f.logo])) {
         const auto = detectService(v)
         if (auto) next.logo = auto
@@ -93,12 +92,10 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
     setLoading(true)
 
     try {
-      // 1. Try native client-side decoding
       let qrContent
       try {
         qrContent = await decodeQrClientSide(file)
       } catch (clientErr) {
-        // 2. Fallback to server parsing
         const reader = new FileReader()
         qrContent = await new Promise((resolve, reject) => {
           reader.onload = async () => {
@@ -157,19 +154,6 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
     }
   }
 
-  function handleLogoFileUpload(file) {
-    if (!file) return
-    if (!file.type.startsWith('image/')) {
-      setErr('Please select an image file for logo')
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = () => {
-      update('logo', reader.result)
-    }
-    reader.readAsDataURL(file)
-  }
-
   async function submit(e) {
     if (e) e.preventDefault()
     setErr('')
@@ -195,7 +179,6 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
       const res = await api.createAccount(payload)
       const createdAcc = res.account
 
-      // Persist group & logo in local metadata
       setAccountMeta(createdAcc.id, {
         group: form.group,
         logo: form.logo,
@@ -213,9 +196,9 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
     }
   }
 
-  return (
+  const modal = (
     <>
-      <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 1000 }}>
         <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
           <h2>Add 2FA Account</h2>
           <div className="tabs">
@@ -295,22 +278,36 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
           {/* Manual Entry Tab */}
           {tab === 'manual' && (
             <form onSubmit={submit}>
-              {/* Live Logo & Title Preview */}
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
-                <ServiceLogo
-                  logo={form.logo}
-                  issuer={form.issuer}
-                  label={form.label}
-                  size={46}
-                />
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 16 }}>
-                    {form.label || 'Account Preview'}
+              {/* Account Icon Trigger via Popup Modal */}
+              <div className="field" style={{ marginBottom: 16 }}>
+                <label className="label">Icon / Logo</label>
+                <div
+                  className="icon-picker-trigger"
+                  onClick={() => setShowIconPicker(true)}
+                >
+                  <div className="icon-picker-trigger-left">
+                    <ServiceLogo
+                      logo={form.logo}
+                      issuer={form.issuer}
+                      label={form.label}
+                      size={40}
+                    />
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>
+                        {form.logo && BRAND_ICONS[form.logo]
+                          ? BRAND_ICONS[form.logo].name
+                          : form.logo
+                          ? 'Custom Logo'
+                          : 'Auto / Initials'}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                        Click to choose from 70+ logos or upload
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                    {form.issuer ? `${form.issuer} · ` : ''}
-                    {form.group ? `Group: ${form.group}` : 'No group'}
-                  </div>
+                  <button type="button" className="btn btn-sm">
+                    Choose Icon
+                  </button>
                 </div>
               </div>
 
@@ -331,7 +328,7 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
                     className="input"
                     value={form.issuer}
                     onChange={(e) => update('issuer', e.target.value)}
-                    placeholder="e.g. GitHub, Google"
+                    placeholder="e.g. GitHub, Google, AWS"
                   />
                 </div>
               </div>
@@ -375,110 +372,21 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
                 </select>
               </div>
 
-              {/* Logo Picker Section */}
-              <div className="field">
-                <label className="label">Logo / Icon</label>
-                <div className="tabs" style={{ marginBottom: 8 }}>
-                  <button
-                    type="button"
-                    className={`tab ${logoTab === 'preset' ? 'active' : ''}`}
-                    onClick={() => setLogoTab('preset')}
-                  >
-                    Brand Presets
-                  </button>
-                  <button
-                    type="button"
-                    className={`tab ${logoTab === 'url' ? 'active' : ''}`}
-                    onClick={() => setLogoTab('url')}
-                  >
-                    Custom URL
-                  </button>
-                  <button
-                    type="button"
-                    className={`tab ${logoTab === 'upload' ? 'active' : ''}`}
-                    onClick={() => setLogoTab('upload')}
-                  >
-                    Upload Image
-                  </button>
-                </div>
-
-                {logoTab === 'preset' && (
-                  <div className="icon-presets-grid" style={{ maxHeight: 110, overflowY: 'auto' }}>
-                    <button
-                      type="button"
-                      className={`icon-preset-btn ${!form.logo ? 'active' : ''}`}
-                      onClick={() => update('logo', '')}
-                    >
-                      <span style={{ fontSize: 12, color: 'var(--muted)' }}>Auto Initials</span>
-                    </button>
-                    {Object.entries(BRAND_ICONS).map(([key, brand]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        className={`icon-preset-btn ${form.logo === key ? 'active' : ''}`}
-                        onClick={() => update('logo', key)}
-                        title={brand.name}
-                      >
-                        <ServiceLogo logo={key} size={20} />
-                        <span>{brand.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {logoTab === 'url' && (
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input
-                      className="input"
-                      placeholder="https://example.com/logo.png"
-                      value={customLogoUrl}
-                      onChange={(e) => setCustomLogoUrl(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => {
-                        if (customLogoUrl.trim()) update('logo', customLogoUrl.trim())
-                      }}
-                    >
-                      Apply
-                    </button>
-                  </div>
-                )}
-
-                {logoTab === 'upload' && (
-                  <div
-                    className="dropzone"
-                    style={{ padding: 14 }}
-                    onClick={() => logoFileRef.current?.click()}
-                  >
-                    <span style={{ fontSize: 13 }}>Choose image file for logo</span>
-                    <input
-                      ref={logoFileRef}
-                      type="file"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={(e) => handleLogoFileUpload(e.target.files?.[0])}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Advanced Settings */}
+              {/* ── All Types & All Algorithms ──────────────────────── */}
               <div className="row">
                 <div className="field">
                   <label className="label">Type</label>
                   <select value={form.type} onChange={(e) => update('type', e.target.value)}>
-                    <option value="totp">TOTP (time-based)</option>
-                    <option value="hotp">HOTP (counter-based)</option>
+                    <option value="totp">TOTP (Time-based, RFC 6238)</option>
+                    <option value="hotp">HOTP (Counter-based, RFC 4226)</option>
                   </select>
                 </div>
                 <div className="field">
                   <label className="label">Digits</label>
                   <select value={form.digits} onChange={(e) => update('digits', +e.target.value)}>
-                    <option value={6}>6</option>
-                    <option value={7}>7</option>
-                    <option value={8}>8</option>
+                    <option value={6}>6 Digits (Standard)</option>
+                    <option value={7}>7 Digits</option>
+                    <option value={8}>8 Digits</option>
                   </select>
                 </div>
               </div>
@@ -486,38 +394,55 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
               {form.type === 'totp' ? (
                 <div className="row">
                   <div className="field">
-                    <label className="label">Period (s)</label>
+                    <label className="label">Period (Seconds)</label>
+                    <select
+                      className="input"
+                      value={form.period}
+                      onChange={(e) => update('period', +e.target.value)}
+                    >
+                      <option value={15}>15 Seconds</option>
+                      <option value={30}>30 Seconds (Default)</option>
+                      <option value={45}>45 Seconds</option>
+                      <option value={60}>60 Seconds</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label className="label">Algorithm</label>
+                    <select
+                      className="input"
+                      value={form.algorithm}
+                      onChange={(e) => update('algorithm', e.target.value)}
+                    >
+                      <option value="SHA1">SHA1 (Default / Most Common)</option>
+                      <option value="SHA256">SHA256 (HMAC-SHA-256)</option>
+                      <option value="SHA512">SHA512 (HMAC-SHA-512)</option>
+                    </select>
+                  </div>
+                </div>
+              ) : (
+                <div className="row">
+                  <div className="field">
+                    <label className="label">Initial Counter Value</label>
                     <input
                       className="input"
                       type="number"
-                      min={15}
-                      max={60}
-                      value={form.period}
-                      onChange={(e) => update('period', +e.target.value)}
+                      min={0}
+                      value={form.counter}
+                      onChange={(e) => update('counter', +e.target.value)}
                     />
                   </div>
                   <div className="field">
                     <label className="label">Algorithm</label>
                     <select
+                      className="input"
                       value={form.algorithm}
                       onChange={(e) => update('algorithm', e.target.value)}
                     >
-                      <option>SHA1</option>
-                      <option>SHA256</option>
-                      <option>SHA512</option>
+                      <option value="SHA1">SHA1 (Default)</option>
+                      <option value="SHA256">SHA256</option>
+                      <option value="SHA512">SHA512</option>
                     </select>
                   </div>
-                </div>
-              ) : (
-                <div className="field">
-                  <label className="label">Counter</label>
-                  <input
-                    className="input"
-                    type="number"
-                    min={0}
-                    value={form.counter}
-                    onChange={(e) => update('counter', +e.target.value)}
-                  />
                 </div>
               )}
             </form>
@@ -538,6 +463,16 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
         </div>
       </div>
 
+      {/* Icon Picker Popup Modal */}
+      <IconPickerModal
+        isOpen={showIconPicker}
+        currentLogo={form.logo}
+        issuer={form.issuer}
+        label={form.label}
+        onSelect={(newLogo) => update('logo', newLogo)}
+        onClose={() => setShowIconPicker(false)}
+      />
+
       {/* Inline Create Group Modal */}
       {showCreateGroupModal && (
         <GroupModal
@@ -553,4 +488,6 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
       )}
     </>
   )
+
+  return createPortal(modal, document.body)
 }

@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { BRAND_ICONS, ServiceLogo, detectService } from '../lib/icons.jsx'
+import IconPickerModal from './IconPickerModal.jsx'
 
 export default function GroupModal({
   isOpen,
@@ -11,6 +13,7 @@ export default function GroupModal({
 }) {
   const [name, setName] = useState(initialName)
   const [logo, setLogo] = useState(initialLogo)
+  const [showIconPicker, setShowIconPicker] = useState(false)
   const [err, setErr] = useState('')
 
   if (!isOpen) return null
@@ -40,16 +43,15 @@ export default function GroupModal({
     }
   }
 
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
-        <h2>{isEdit ? 'Rename Group' : 'Create New Group'}</h2>
+  const modal = (
+    <>
+      <div className="modal-backdrop" onClick={onClose} style={{ zIndex: 1000 }}>
+        <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+          <h2>{isEdit ? 'Rename Group' : 'Create New Group'}</h2>
 
-        <form onSubmit={submit}>
-          <div className="field">
-            <label className="label">Group Name *</label>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <ServiceLogo logo={logo} issuer={name} label={name} size={36} />
+          <form onSubmit={submit}>
+            <div className="field">
+              <label className="label">Group Name *</label>
               <input
                 className="input"
                 autoFocus
@@ -59,38 +61,55 @@ export default function GroupModal({
                 required
               />
             </div>
-          </div>
 
-          <div className="field" style={{ marginTop: 14 }}>
-            <label className="label">Group Icon (Optional)</label>
-            <div className="icon-presets-grid" style={{ maxHeight: 110, overflowY: 'auto' }}>
-              {Object.entries(BRAND_ICONS).map(([key, brand]) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={`icon-preset-btn ${logo === key ? 'active' : ''}`}
-                  onClick={() => setLogo(key === logo ? '' : key)}
-                  title={brand.name}
-                >
-                  <ServiceLogo logo={key} size={22} />
-                  <span>{brand.name}</span>
+            <div className="field" style={{ marginTop: 16 }}>
+              <label className="label">Group Icon (Optional)</label>
+              <div
+                className="icon-picker-trigger"
+                onClick={() => setShowIconPicker(true)}
+              >
+                <div className="icon-picker-trigger-left">
+                  <ServiceLogo logo={logo} issuer={name} label={name} size={32} />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>
+                      {logo && BRAND_ICONS[logo] ? BRAND_ICONS[logo].name : logo ? 'Custom Icon' : 'Auto / Monogram'}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                      Click to choose from 70+ icons
+                    </div>
+                  </div>
+                </div>
+                <button type="button" className="btn btn-sm">
+                  Change Icon
                 </button>
-              ))}
+              </div>
             </div>
-          </div>
 
-          {err && <div className="error" style={{ marginTop: 12 }}>{err}</div>}
+            {err && <div className="error" style={{ marginTop: 12 }}>{err}</div>}
 
-          <div className="modal-actions" style={{ marginTop: 18 }}>
-            <button type="button" className="btn btn-ghost" onClick={onClose}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn-primary">
-              {isEdit ? 'Save Changes' : 'Create Group'}
-            </button>
-          </div>
-        </form>
+            <div className="modal-actions" style={{ marginTop: 22 }}>
+              <button type="button" className="btn btn-ghost" onClick={onClose}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary">
+                {isEdit ? 'Save Changes' : 'Create Group'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
+
+      {/* Dedicated Icon Picker Popup */}
+      <IconPickerModal
+        isOpen={showIconPicker}
+        currentLogo={logo}
+        issuer={name}
+        label={name}
+        onSelect={(newLogo) => setLogo(newLogo)}
+        onClose={() => setShowIconPicker(false)}
+      />
+    </>
   )
+
+  return createPortal(modal, document.body)
 }

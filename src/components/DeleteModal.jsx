@@ -1,3 +1,5 @@
+import { createPortal } from 'react-dom'
+
 export default function DeleteModal({
   isOpen,
   title = 'Delete Account',
@@ -9,8 +11,8 @@ export default function DeleteModal({
 }) {
   if (!isOpen) return null
 
-  return (
-    <div className="modal-backdrop" onClick={onCancel}>
+  const modal = (
+    <div className="modal-backdrop" onClick={onCancel} style={{ zIndex: 1200 }}>
       <div className="modal delete-modal" onClick={(e) => e.stopPropagation()}>
         <div className="delete-modal-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -38,4 +40,6 @@ export default function DeleteModal({
       </div>
     </div>
   )
+
+  return createPortal(modal, document.body)
 }
