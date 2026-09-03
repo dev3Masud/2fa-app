@@ -1,10 +1,11 @@
 # 2FA Vault
 
-A self-hosted 2FA (TOTP/HOTP) manager that runs on Vercel with Supabase for storage. Zero-knowledge encryption: your password is the master key.
+A self-hosted 2FA (TOTP/HOTP) manager built with Node.js + Express + React + Supabase. Zero-knowledge encryption: your password is the master key.
 
 ## Features
 
-- Username + password auth (mandatory `ADMIN_USER` / `ADMIN_PASS` env vars)
+- **Single Node.js project** — Express server + React SPA in one repo
+- Username + password auth (mandatory `ADMIN_USER` / `ADMIN_PASS` env vars, 16+ char password)
 - Zero-knowledge: secrets encrypted with a key derived from your password (PBKDF2 + AES-256-GCM)
 - Stored in **Supabase Postgres** (encrypted at rest by your key, not theirs)
 - QR upload, `otpauth://` paste, or manual entry
@@ -12,12 +13,45 @@ A self-hosted 2FA (TOTP/HOTP) manager that runs on Vercel with Supabase for stor
 - TOTP and HOTP support (SHA1/256/512, 6/7/8 digits)
 - Single-user design
 
+## Security hardening (built-in)
+
+- **Helmet** sets secure HTTP headers (CSP, HSTS, frame options, etc.)
+- **Rate limiting** on login: 5 failed attempts per 15 minutes per IP
+- **Body size limit** of 2 MB on all requests
+- **2 MB cap** on QR image data URIs
+- **UUID format validation** on account IDs
+- **HKDF** for the session-key derivation
+- **Async PBKDF2** (non-blocking event loop)
+- **bcrypt** (cost 12) for password storage
+- **AES-256-GCM** with random 12-byte IVs for all secrets
+- **HttpOnly + Secure + SameSite=Strict** session cookies
+
 ## Architecture
 
-- **Frontend:** React + Vite (static SPA)
-- **Backend:** Vercel Serverless Functions (`/api/*`)
-- **Storage:** Supabase Postgres (rows are encrypted client-side with vault key)
-- **Crypto:** PBKDF2 (310k iterations, SHA-256) → vault key → AES-256-GCM per secret
+```
+┌──────────────────────────────────────────────────────┐
+│  React + Vite SPA   (built to /dist)                 │
+│  Served by Express as static files in production    │
+└──────────────────────────────────────────────────────┘
+              │
+              ▼
+┌──────────────────────────────────────────────────────┐
+│  Express server (server/index.js)                    │
+│  ├─ /api/login         (rate-limited)                │
+│  ├─ /api/logout                                      │
+│  ├─ /api/accounts     (GET / POST / DELETE /:id)     │
+│  ├─ /api/totp/:id                                    │
+│  ├─ /api/qr-parse                                    │
+│  └─ /api/mode                                        │
+└──────────────────────────────────────────────────────┘
+              │
+              ▼
+┌──────────────────────────────────────────────────────┐
+│  Supabase Postgres (RLS enabled)                     │
+│  ├─ users     (bcrypt hash, wrapped vault key)       │
+│  └─ accounts  (encrypted TOTP secrets + metadata)    │
+└──────────────────────────────────────────────────────┘
+```
 
 ## Security model
 
@@ -25,11 +59,11 @@ A self-hosted 2FA (TOTP/HOTP) manager that runs on Vercel with Supabase for stor
    - Password is bcrypt-hashed and stored
    - A random 32-byte vault key is generated
    - PBKDF2(password) → KEK → wraps vault key → stored alongside user row
-2. On every login, the wrapped vault key is unwrapped and re-wrapped (protects against offline attacks on stale data)
-3. The unwrapped vault key is AES-encrypted with a key derived from `SESSION_SECRET` and embedded in the JWT session cookie
+2. On every login, the wrapped vault key is unwrapped and re-wrapped
+3. The unwrapped vault key is AES-encrypted with HKDF(`SESSION_SECRET`) and embedded in the JWT session cookie
 4. Each authenticated request decrypts the vault key from the JWT to encrypt/decrypt account secrets
 5. All account secrets are AES-256-GCM encrypted with random 12-byte IVs before storage
-6. **Supabase RLS is enabled** — only the service-role key (used in Functions) can read/write; the anon key cannot
+6. **Supabase RLS is enabled** — only the service-role key (used in the Express server) can read/write
 
 ## Setup
 
@@ -54,78 +88,84 @@ A self-hosted 2FA (TOTP/HOTP) manager that runs on Vercel with Supabase for stor
    - **service_role** key (NOT the anon key) → this is your `SUPABASE_SERVICE_ROLE_KEY`
    - ⚠️ The service_role key bypasses RLS. Never expose it to the frontend.
 
-### 4. Deploy to Vercel
-
-**Option A: Vercel dashboard (easiest)**
-
-1. Go to https://vercel.com → **Add New…** → **Project**
-2. Import this repo
-3. Vercel auto-detects Vite framework
-4. Before clicking Deploy, expand **Environment Variables** and add:
-
-```
-SESSION_SECRET=<openssl rand -hex 32>
-ADMIN_USER=<your chosen username>
-ADMIN_PASS=<your chosen password, 8+ chars>
-SUPABASE_URL=https://xxxxx.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
-```
-
-**All five are required** — the app will refuse to serve requests if any are missing.
-
-5. Click **Deploy**
-
-**Option B: Vercel CLI**
+### 4. Local development
 
 ```bash
-npm i -g vercel
-vercel
-# answer prompts, then:
-vercel env add SESSION_SECRET
-vercel env add ADMIN_USER
-vercel env add ADMIN_PASS
-vercel env add SUPABASE_URL
-vercel env add SUPABASE_SERVICE_ROLE_KEY
-vercel --prod
+git clone <this-repo>
+cd 2fa-app
+npm install
+
+cp .env.example .env
+# Edit .env and fill in:
+#   SESSION_SECRET        (openssl rand -hex 32)
+#   ADMIN_USER            (your username)
+#   ADMIN_PASS            (your password, 16+ chars)
+#   SUPABASE_URL          (from step 3)
+#   SUPABASE_SERVICE_ROLE_KEY  (from step 3)
+
+npm run dev
 ```
 
-### 5. Sign in
+This runs **two processes concurrently**:
+- Vite dev server on `http://localhost:3000` (with HMR for the React app)
+- Express API server on `http://localhost:3001` (with `--watch` for auto-reload)
+
+Vite proxies `/api/*` requests to the Express server, so you only ever visit `localhost:3000` in your browser.
+
+### 5. Production build
+
+```bash
+npm run build   # builds React app to dist/
+npm start       # starts Express server with NODE_ENV=production
+```
+
+In production, Express serves the built React app from `dist/` and handles all `/api/*` routes on a single port (default 3001, configurable with `PORT`).
+
+### 6. Deploy anywhere
+
+The Express server is a standard Node.js app — deploy to any host that runs Node:
+
+- **Render / Railway / Fly.io**: point at this repo, set env vars, build command `npm run build`, start command `npm start`
+- **A VPS**: clone, `npm install`, `npm run build`, `npm start` behind a reverse proxy (nginx/Caddy)
+- **Docker**: see the example below
+
+#### Docker (example)
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY . .
+RUN npm run build
+ENV NODE_ENV=production
+EXPOSE 3001
+CMD ["npm", "start"]
+```
+
+### 7. Sign in
 
 Visit your deployed URL, sign in with `ADMIN_USER` / `ADMIN_PASS` — the first login creates your user row in Supabase and initializes the vault.
-
-## Local development
-
-```bash
-npm install
-cp .env.example .env
-# fill in SESSION_SECRET, ADMIN_USER, ADMIN_PASS, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-```
-
-For local dev you need both the frontend and API running. Vercel provides `vercel dev` which runs both:
-
-```bash
-npm i -g vercel
-vercel dev
-```
-
-App runs at `http://localhost:3000`, functions proxied at `/api/*`.
 
 ## Project structure
 
 ```
-vercel.json              # Vercel build + SPA rewrite config
-api/
-  login.js               # Auth + bootstrap user
-  logout.js
-  accounts.js            # GET/POST/DELETE accounts
-  totp.js                # Generate current code
-  qr-parse.js            # Parse QR image or otpauth URI
-  mode.js                # Tells frontend which mode is active
-  lib/crypto.js          # PBKDF2 + AES-GCM primitives
-  lib/supabase.js        # Supabase client + queries
-  lib/users.js           # User bootstrap + auth + vault unlock
-  lib/auth.js            # JWT + cookie + session vault-key wrap
-src/
+server/                    # Express backend
+  index.js                 # App entry point (helmet, rate limit, routes, static)
+  routes/
+    login.js               # POST /api/login
+    logout.js              # POST /api/logout
+    accounts.js            # GET/POST/DELETE /api/accounts(/:id)
+    totp.js                # GET /api/totp/:id
+    qr-parse.js            # POST /api/qr-parse
+    mode.js                # GET /api/mode
+  lib/
+    crypto.js              # PBKDF2 + AES-GCM primitives
+    supabase.js            # Supabase client + queries
+    users.js               # User bootstrap + auth + vault unlock
+    auth.js                # JWT + cookie + session vault-key wrap
+
+src/                       # React frontend
   App.jsx
   main.jsx
   pages/Login.jsx
@@ -135,9 +175,24 @@ src/
   components/Countdown.jsx
   lib/api.js
   styles.css
-supabase-schema.sql      # Run this in Supabase SQL editor
-.env.example             # Copy to .env
+
+supabase-schema.sql        # Run this in Supabase SQL editor
+.env.example               # Copy to .env
+vite.config.js             # Vite dev config (proxies /api to :3001)
 ```
+
+## Environment variables
+
+| Var | Required | Notes |
+|---|---|---|
+| `SESSION_SECRET` | ✅ | 32+ random chars. `openssl rand -hex 32` |
+| `ADMIN_USER` | ✅ | Single admin username |
+| `ADMIN_PASS` | ✅ | 16+ characters |
+| `SUPABASE_URL` | ✅ | From Supabase project settings |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Service-role key (NOT anon) |
+| `PORT` | optional | Default 3001 |
+
+The app **refuses to start** if any required var is missing or `ADMIN_PASS < 16` chars.
 
 ## Trade-offs (intentional)
 

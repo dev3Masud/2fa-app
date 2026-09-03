@@ -1,9 +1,10 @@
 async function request(path, options = {}) {
   const res = await fetch(path, {
     credentials: 'include',
-    headers: options.body && !(options.body instanceof FormData)
-      ? { 'Content-Type': 'application/json', ...(options.headers || {}) }
-      : { ...(options.headers || {}) },
+    headers:
+      options.body && !(options.body instanceof FormData)
+        ? { 'Content-Type': 'application/json', ...(options.headers || {}) }
+        : { ...(options.headers || {}) },
     ...options,
   })
   const text = await res.text()
@@ -26,7 +27,10 @@ export const api = {
     return request('/api/mode')
   },
   login(username, password) {
-    return request('/api/login', { method: 'POST', body: JSON.stringify({ username, password }) })
+    return request('/api/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    })
   },
   logout() {
     return request('/api/logout', { method: 'POST' })
@@ -35,19 +39,30 @@ export const api = {
     return request('/api/accounts')
   },
   createAccount(data) {
-    return request('/api/accounts', { method: 'POST', body: JSON.stringify(data) })
+    return request('/api/accounts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
   },
+  // Updated: DELETE now uses REST path param /api/accounts/:id
   deleteAccount(id) {
-    return request(`/api/accounts?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+    return request(`/api/accounts/${encodeURIComponent(id)}`, { method: 'DELETE' })
   },
+  // Updated: GET now uses REST path param /api/totp/:id
   getCode(id, counter) {
-    const q = counter != null ? `&counter=${counter}` : ''
-    return request(`/api/totp?id=${encodeURIComponent(id)}${q}`)
+    const q = counter != null ? `?counter=${counter}` : ''
+    return request(`/api/totp/${encodeURIComponent(id)}${q}`)
   },
   parseQr(dataUri) {
-    return request('/api/qr-parse', { method: 'POST', body: JSON.stringify({ dataUri }) })
+    return request('/api/qr-parse', {
+      method: 'POST',
+      body: JSON.stringify({ dataUri }),
+    })
   },
   parseUri(uri) {
-    return request('/api/qr-parse', { method: 'POST', body: JSON.stringify({ uri }) })
+    return request('/api/qr-parse', {
+      method: 'POST',
+      body: JSON.stringify({ uri }),
+    })
   },
 }

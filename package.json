@@ -1,17 +1,25 @@
 {
-  "name": "2fa-app",
+  "name": "2fa-vault",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -n server,vite -c cyan,magenta \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "node --watch server/index.js",
+    "dev:client": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "start": "NODE_ENV=production node server/index.js",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.114.0",
     "bcryptjs": "^2.4.3",
+    "concurrently": "^9.1.2",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "jsqr": "^1.4.0",
     "otpauth": "^9.3.4",

@@ -14,7 +14,6 @@ export default function Login() {
       .then((res) => {
         if (cancelled) return
         setMode(res)
-        if (res.username) setUsername((u) => (u ? u : res.username))
       })
       .catch(() => {
         if (!cancelled) setMode({ mode: 'unknown' })
@@ -39,8 +38,8 @@ export default function Login() {
   const hint = !mode
     ? 'Loading…'
     : mode.mode === 'misconfigured'
-      ? `Server misconfigured: ${mode.message}`
-      : mode.userExists
+      ? 'Server is misconfigured — check environment variables.'
+      : mode.hasAccount
         ? 'Sign in to your vault.'
         : 'First time? Sign in to create your vault.'
 
