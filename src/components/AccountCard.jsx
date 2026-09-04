@@ -19,7 +19,6 @@ export default function AccountCard({
 }) {
   const [copied, setCopied] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [inlineConfirmDelete, setInlineConfirmDelete] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [hotpCounter, setHotpCounter] = useState(account.counter ?? 0)
@@ -65,7 +64,6 @@ export default function AccountCard({
       alert(e.message || 'Failed to delete account')
     } finally {
       setDeleting(false)
-      setInlineConfirmDelete(false)
     }
   }
 
@@ -176,59 +174,29 @@ export default function AccountCard({
               </button>
             )}
 
-            {/* Delete button: fades + slides in only when editMode is on.
-                Two-step inline confirm: first click reveals Confirm/Cancel,
-                second click deletes. Auto-collapses if the user clicks away. */}
+            {/* Delete button: visible only in editMode. Opens the 2-step
+                delete popup (warning → type `sudo rm 2fa`). */}
             {editMode && (
-              <div
-                className={`delete-cluster ${inlineConfirmDelete ? 'confirming' : ''}`}
-                onMouseLeave={() => setInlineConfirmDelete(false)}
+              <button
+                className="btn-icon btn-danger"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowDeleteModal(true)
+                }}
+                title="Delete account"
+                aria-label="Delete account"
               >
-                {!inlineConfirmDelete ? (
-                  <button
-                    className="btn-icon btn-danger"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setInlineConfirmDelete(true)
-                    }}
-                    title="Delete account"
-                    aria-label="Delete account"
-                  >
-                    <FontAwesomeIcon icon={faXmark} style={{ fontSize: 16 }} />
-                  </button>
-                ) : (
-                  <div className="delete-confirm">
-                    <button
-                      className="btn btn-sm btn-danger-solid"
-                      disabled={deleting}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        confirmDelete()
-                      }}
-                    >
-                      {deleting ? '…' : 'Confirm'}
-                    </button>
-                    <button
-                      className="btn btn-sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setInlineConfirmDelete(false)
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
-              </div>
+                <FontAwesomeIcon icon={faXmark} style={{ fontSize: 16 }} />
+              </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Two-step modal (kept as a power-user fallback; the inline flow above
-          is the default in edit mode). */}
+      {/* Two-step delete: warning, then type `sudo rm 2fa` to confirm. */}
       <DeleteModal
         isOpen={showDeleteModal}
+        variant="account"
         account={account}
         loading={deleting}
         onConfirm={confirmDelete}

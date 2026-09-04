@@ -12,6 +12,7 @@ import {
 import { api } from '../lib/api.js'
 import IconPickerModal from './IconPickerModal.jsx'
 import GroupModal from './GroupModal.jsx'
+import Select from './Select.jsx'
 
 export default function EditAccountModal({
   isOpen,
@@ -167,23 +168,18 @@ export default function EditAccountModal({
                   <FontAwesomeIcon icon={faPlus} style={{ fontSize: 11 }} /> Create New Group
                 </button>
               </div>
-              <select
+              <Select
                 value={group}
-                onChange={(e) => setGroup(e.target.value)}
-                className="input"
-              >
-                <option value="">(No Group / Ungrouped)</option>
-                {!groupExistsInList && (
-                  <option value={group}>
-                    {group} (Current)
-                  </option>
-                )}
-                {customGroups.map((g) => (
-                  <option key={g.id} value={g.name}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setGroup}
+                ariaLabel="Group / Category"
+                options={[
+                  { value: '', label: '(No Group / Ungrouped)' },
+                  ...(!groupExistsInList
+                    ? [{ value: group, label: `${group} (Current)` }]
+                    : []),
+                  ...customGroups.map((g) => ({ value: g.name, label: g.name })),
+                ]}
+              />
             </div>
 
             <div className="field" style={{ padding: '10px 14px', background: 'var(--bg)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.5] - 2026-09-04
+
+### Added
+* **Beautiful custom dropdowns.** All native `<select>` elements (group, type, digits, period, algorithm in Add/Edit modals) are replaced by a new dark-themed `Select` component (`src/components/Select.jsx`) with a rotating chevron, animated pop-in menu, hover/selected states, selected check-mark, custom scrollbar, and outside-click / Escape dismissal.
+
+### Changed
+* **Smooth slide expand/collapse for groups.** Collapsing a group no longer snaps — items now slide shut/open via a `grid-template-rows` 0fr↔1fr transition with fade, reusing the motion timing system.
+* **Group delete (trash) is hidden by default** and only appears in **Edit** mode for custom groups. Rename (pen) stays always visible.
+* **Typed delete phrases are now target-specific.** Step 2 of group deletion requires typing `sudo rm group`; step 2 of 2FA account deletion requires `sudo rm 2fa` (comparison is case-insensitive). The old shared `SUDO DELETE` phrase is gone.
+* **Account deletion is a true 2-step flow again.** The inline `Confirm` button on an account row now opens the 2-step delete modal (warning → type `sudo rm 2fa`) instead of deleting immediately.
+* **Row delete opens the popup directly.** Clicking the `×` delete button on an account row now opens the 2-step delete popup immediately — the intermediate inline Confirm/Cancel cluster on the row (and its CSS) was removed.
+
+---
+
 ## [2.0.4] - 2026-09-04
 
 ### Changed

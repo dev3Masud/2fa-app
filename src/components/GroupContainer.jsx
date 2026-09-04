@@ -83,8 +83,8 @@ export default function GroupContainer({
             </button>
           )}
 
-          {/* Delete group */}
-          {isCustomGroup && (
+          {/* Delete group — visible only in edit mode */}
+          {editMode && isCustomGroup && (
             <button
               className="group-action-btn btn-danger"
               onClick={() => setShowDeleteModal(true)}
@@ -137,9 +137,10 @@ export default function GroupContainer({
         </div>
       </div>
 
-      {/* Group Items */}
-      {!collapsed && (
-        <div className="group-items">
+      {/* Group Items — smooth slide expand/collapse via grid-rows animation */}
+      <div className={`group-collapse ${collapsed ? 'collapsed' : ''}`} aria-hidden={collapsed}>
+        <div className="group-collapse-inner">
+          <div className="group-items">
           {accounts.length === 0 ? (
             <div className="group-empty-hint">
               No accounts in this group yet.{' '}
@@ -193,8 +194,9 @@ export default function GroupContainer({
               )
             })
           )}
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Rename Modal */}
       {showRenameModal && (
@@ -215,6 +217,7 @@ export default function GroupContainer({
       {showDeleteModal && (
         <DeleteModal
           isOpen={showDeleteModal}
+          variant="group"
           title="Delete Group"
           message="Are you sure you want to delete this group? Accounts inside will not be deleted; they will be moved to Ungrouped."
           itemName={group.name}

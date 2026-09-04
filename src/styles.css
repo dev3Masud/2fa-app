@@ -523,39 +523,6 @@ html, body, #root {
   }
 }
 
-/* ── Delete cluster (edit mode only) ──────────────────────── */
-.delete-cluster {
-  display: inline-flex;
-  align-items: center;
-  overflow: hidden;
-  animation: fadeSlideIn var(--motion-med) var(--ease-out);
-}
-@keyframes fadeSlideIn {
-  0% {
-    opacity: 0;
-    transform: translateX(8px) scale(0.9);
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
-}
-.delete-confirm {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  animation: confirmPop var(--motion-med) var(--ease-spring);
-}
-@keyframes confirmPop {
-  0% {
-    opacity: 0;
-    transform: scale(0.85);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
 .btn-danger-solid {
   background: var(--danger);
   border: 1px solid var(--danger);
@@ -916,6 +883,137 @@ html, body, #root {
   border-radius: var(--radius-sm);
   font-size: 13px;
   margin-bottom: 12px;
+}
+
+/* ── Beautiful custom dropdown (replaces native <select>) ── */
+.custom-select {
+  position: relative;
+  width: 100%;
+}
+.custom-select-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
+}
+.custom-select-btn:hover {
+  border-color: var(--border-hover);
+}
+.custom-select.open .custom-select-btn,
+.custom-select-btn:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.custom-select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.custom-select-placeholder {
+  color: var(--muted);
+}
+.custom-select-chevron {
+  font-size: 12px;
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+.custom-select.open .custom-select-chevron {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+.custom-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  background: var(--panel-2);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  padding: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  animation: selectPop 0.16s var(--ease-out);
+  scrollbar-width: thin;
+}
+.custom-select-menu::-webkit-scrollbar {
+  width: 8px;
+}
+.custom-select-menu::-webkit-scrollbar-thumb {
+  background: var(--border-hover);
+  border-radius: 4px;
+}
+.custom-select-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13.5px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+.custom-select-option:hover {
+  background: rgba(99, 102, 241, 0.14);
+}
+.custom-select-option.selected {
+  background: rgba(99, 102, 241, 0.18);
+  color: #fff;
+  font-weight: 600;
+}
+.custom-select-check {
+  font-size: 12px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+@keyframes selectPop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Smooth slide expand/collapse for group items ─────────── */
+.group-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition: grid-template-rows var(--motion-med) var(--ease-out),
+              opacity var(--motion-fast) var(--ease-out);
+}
+.group-collapse.collapsed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.group-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* ── Modals ─────────────────────────────────────────────── */

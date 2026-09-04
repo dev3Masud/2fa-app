@@ -8,6 +8,7 @@ import { BRAND_ICONS, ServiceLogo, detectService } from '../lib/icons.jsx'
 import { getCustomGroups, createCustomGroup, setAccountMeta } from '../lib/groupsStorage.js'
 import GroupModal from './GroupModal.jsx'
 import IconPickerModal from './IconPickerModal.jsx'
+import Select from './Select.jsx'
 
 export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
   const [tab, setTab] = useState('qr')
@@ -355,36 +356,43 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
                     <FontAwesomeIcon icon={faPlus} style={{ fontSize: 11 }} /> Create New Group
                   </button>
                 </div>
-                <select
-                  className="input"
+                <Select
                   value={form.group}
-                  onChange={(e) => update('group', e.target.value)}
-                >
-                  <option value="">(No Group / Ungrouped)</option>
-                  {customGroups.map((g) => (
-                    <option key={g.id} value={g.name}>
-                      {g.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => update('group', v)}
+                  ariaLabel="Assign to Group"
+                  options={[
+                    { value: '', label: '(No Group / Ungrouped)' },
+                    ...customGroups.map((g) => ({ value: g.name, label: g.name })),
+                  ]}
+                />
               </div>
 
               {/* ── All Types & All Algorithms ──────────────────────── */}
               <div className="row">
                 <div className="field">
                   <label className="label">Type</label>
-                  <select value={form.type} onChange={(e) => update('type', e.target.value)}>
-                    <option value="totp">TOTP (Time-based, RFC 6238)</option>
-                    <option value="hotp">HOTP (Counter-based, RFC 4226)</option>
-                  </select>
+                  <Select
+                    value={form.type}
+                    onChange={(v) => update('type', v)}
+                    ariaLabel="Type"
+                    options={[
+                      { value: 'totp', label: 'TOTP (Time-based, RFC 6238)' },
+                      { value: 'hotp', label: 'HOTP (Counter-based, RFC 4226)' },
+                    ]}
+                  />
                 </div>
                 <div className="field">
                   <label className="label">Digits</label>
-                  <select value={form.digits} onChange={(e) => update('digits', +e.target.value)}>
-                    <option value={6}>6 Digits (Standard)</option>
-                    <option value={7}>7 Digits</option>
-                    <option value={8}>8 Digits</option>
-                  </select>
+                  <Select
+                    value={form.digits}
+                    onChange={(v) => update('digits', Number(v))}
+                    ariaLabel="Digits"
+                    options={[
+                      { value: 6, label: '6 Digits (Standard)' },
+                      { value: 7, label: '7 Digits' },
+                      { value: 8, label: '8 Digits' },
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -392,28 +400,30 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
                 <div className="row">
                   <div className="field">
                     <label className="label">Period (Seconds)</label>
-                    <select
-                      className="input"
+                    <Select
                       value={form.period}
-                      onChange={(e) => update('period', +e.target.value)}
-                    >
-                      <option value={15}>15 Seconds</option>
-                      <option value={30}>30 Seconds (Default)</option>
-                      <option value={45}>45 Seconds</option>
-                      <option value={60}>60 Seconds</option>
-                    </select>
+                      onChange={(v) => update('period', Number(v))}
+                      ariaLabel="Period (Seconds)"
+                      options={[
+                        { value: 15, label: '15 Seconds' },
+                        { value: 30, label: '30 Seconds (Default)' },
+                        { value: 45, label: '45 Seconds' },
+                        { value: 60, label: '60 Seconds' },
+                      ]}
+                    />
                   </div>
                   <div className="field">
                     <label className="label">Algorithm</label>
-                    <select
-                      className="input"
+                    <Select
                       value={form.algorithm}
-                      onChange={(e) => update('algorithm', e.target.value)}
-                    >
-                      <option value="SHA1">SHA1 (Default / Most Common)</option>
-                      <option value="SHA256">SHA256 (HMAC-SHA-256)</option>
-                      <option value="SHA512">SHA512 (HMAC-SHA-512)</option>
-                    </select>
+                      onChange={(v) => update('algorithm', v)}
+                      ariaLabel="Algorithm"
+                      options={[
+                        { value: 'SHA1', label: 'SHA1 (Default / Most Common)' },
+                        { value: 'SHA256', label: 'SHA256 (HMAC-SHA-256)' },
+                        { value: 'SHA512', label: 'SHA512 (HMAC-SHA-512)' },
+                      ]}
+                    />
                   </div>
                 </div>
               ) : (
@@ -430,15 +440,16 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
                   </div>
                   <div className="field">
                     <label className="label">Algorithm</label>
-                    <select
-                      className="input"
+                    <Select
                       value={form.algorithm}
-                      onChange={(e) => update('algorithm', e.target.value)}
-                    >
-                      <option value="SHA1">SHA1 (Default)</option>
-                      <option value="SHA256">SHA256</option>
-                      <option value="SHA512">SHA512</option>
-                    </select>
+                      onChange={(v) => update('algorithm', v)}
+                      ariaLabel="Algorithm"
+                      options={[
+                        { value: 'SHA1', label: 'SHA1 (Default)' },
+                        { value: 'SHA256', label: 'SHA256' },
+                        { value: 'SHA512', label: 'SHA512' },
+                      ]}
+                    />
                   </div>
                 </div>
               )}

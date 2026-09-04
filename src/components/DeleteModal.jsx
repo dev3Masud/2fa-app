@@ -12,11 +12,17 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import { ServiceLogo } from '../lib/icons.jsx'
 
-const CONFIRM_PHRASE = 'SUDO DELETE'
+// Step-2 typed confirmation phrase per delete target.
+// Groups require `sudo rm group`, single 2FA accounts require `sudo rm 2fa`.
+const CONFIRM_PHRASES = {
+  account: 'sudo rm 2fa',
+  group: 'sudo rm group',
+}
 
 export default function DeleteModal({
   isOpen,
   account,
+  variant = 'account',
   // Legacy / Group deletion props
   title: customTitle,
   message: customMessage,
@@ -25,6 +31,7 @@ export default function DeleteModal({
   onCancel,
   loading = false,
 }) {
+  const CONFIRM_PHRASE = CONFIRM_PHRASES[variant] || CONFIRM_PHRASES.account
   const [step, setStep] = useState(1)
   const [confirmText, setConfirmText] = useState('')
   const inputRef = useRef(null)
@@ -49,7 +56,7 @@ export default function DeleteModal({
   const isGroupDelete = Boolean(!account && (itemName || customTitle?.toLowerCase().includes('group')))
   const accountName = account?.label || itemName || ''
   const accountIssuer = account?.issuer || ''
-  const isConfirmed = confirmText.trim().toUpperCase() === CONFIRM_PHRASE
+  const isConfirmed = confirmText.trim().toLowerCase() === CONFIRM_PHRASE.toLowerCase()
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -263,7 +270,7 @@ export default function DeleteModal({
               <div>
                 {confirmText && !isConfirmed && (
                   <span style={{ color: 'var(--muted)', fontSize: 12 }}>
-                    {CONFIRM_PHRASE.startsWith(confirmText.trim().toUpperCase())
+                    {CONFIRM_PHRASE.toLowerCase().startsWith(confirmText.trim().toLowerCase())
                       ? `Keep typing… ${CONFIRM_PHRASE.length - confirmText.trim().length} chars left`
                       : <><FontAwesomeIcon icon={faXmark} style={{ fontSize: 12 }} /> Does not match — must type: {CONFIRM_PHRASE}</>}
                   </span>
