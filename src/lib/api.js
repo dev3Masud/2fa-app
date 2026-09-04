@@ -157,6 +157,13 @@ export const api = {
       body: JSON.stringify(data),
     })
   },
+  // PATCH /api/accounts/reorder — persist new account order to DB
+  reorderAccounts(orderedIds) {
+    return request('/api/accounts/reorder', {
+      method: 'PATCH',
+      body: JSON.stringify({ orderedIds }),
+    })
+  },
   // Updated: GET now uses REST path param /api/totp/:id
   getCode(id, counter) {
     const q = counter != null ? `?counter=${counter}` : ''
@@ -196,5 +203,12 @@ export const api = {
   },
   deleteGroup(id) {
     return request(`/api/groups/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  },
+  // PATCH /api/groups/reorder — persist new group order to DB
+  reorderGroups(orderedIds) {
+    return request('/api/groups/reorder', {
+      method: 'PATCH',
+      body: JSON.stringify({ orderedIds }),
+    })
   },
 }

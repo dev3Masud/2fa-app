@@ -10,14 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0.2] - 2026-09-04
 
 ### Fixed
-* **CSRF false-positive "CSRF token missing or invalid" on Vercel deployments.** The `2fa_csrf` cookie was set with `SameSite=Strict` and was silently dropped by some browsers / Vercel preview-URL redirects right after login, leaving the client with no token to echo back. Three layers of defence are now in place:
+* **CSRF false-positive "CSRF token missing or invalid" on Vercel deployments.** The `2fa_csrf` cookie was set with `SameSite=Strict` and was silently dropped by some browsers / Vercel preview-URL redirects right after login, leaving the client with no token to echo back. Three layers of defense are now in place:
   * The CSRF cookie now uses `SameSite=Lax` (CSRF protection still holds — the security property is that the header is not auto-sent cross-site, not the cookie itself).
   * `Secure` is now also added whenever `VERCEL=1`, since Vercel does not set `NODE_ENV=production` by default.
   * The client now caches the CSRF token in memory (primed from the login response body) and, on any 403 CSRF error, transparently calls the new `GET /api/csrf` endpoint to re-issue a fresh token and retries the original request once.
 
 ### Added
 * `GET /api/csrf` — issues a fresh `2fa_csrf` cookie + returns the token in the JSON body. Requires an authenticated session but is exempt from the CSRF check (no chicken-and-egg).
+* **Drag-to-reorder for both custom groups and 2FA accounts inside a group.** Drag the grip handle (visible on hover) on any group header or account row to rearrange; the new order is persisted to the database immediately and also cached in `localStorage` so it survives a reload. Powered by a small dependency-free `useDragReorder` hook with native HTML5 drag-and-drop.
+  * `PATCH /api/accounts/reorder` and `PATCH /api/groups/reorder` accept a full ordered `orderedIds` array, validate ownership, then assign evenly-spaced `double precision` positions in a single batch.
+  * `public.accounts` and `public.groups` gain a `position double precision` column; new listings order by `position` then `created_at`. The SQL migration is idempotent (`add column if not exists`) so existing databases upgrade in place.
 * New tests in `tests/auth.test.js` covering `SameSite=Lax`, Vercel-only (`VERCEL=1`, no `NODE_ENV`) cookie hardening, and the session-cookie attributes.
+* New `tests/reorder.test.js` covering the pure `reorderArray` helper (no mutation, no-op on same id, custom `getId`) and the server-side `reorderAccountsByUser` / `reorderGroupsByUser` validation paths.
 
 ---
 

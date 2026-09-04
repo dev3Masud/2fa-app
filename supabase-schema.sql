@@ -10,11 +10,19 @@ alter table public.accounts add column if not exists group_name text not null de
 alter table public.accounts add column if not exists logo text not null default '';
 update public.accounts set group_name = '' where group_name = 'General';
 
+-- Drag-to-reorder: doubles allow fractional ordering so the server can insert
+-- new items between existing ones without renumbering every row.
+alter table public.accounts add column if not exists position double precision not null default 0;
+alter table public.groups add column if not exists position double precision not null default 0;
+create index if not exists accounts_position_idx on public.accounts(user_id, position);
+create index if not exists groups_position_idx on public.groups(user_id, position);
+
 create table if not exists public.groups (
   id text primary key,
   user_id uuid not null references public.users(id) on delete cascade,
   name text not null,
   logo text not null default '',
+  position double precision not null default 0,
   created_at timestamptz not null default now()
 );
 create index if not exists groups_user_id_idx on public.groups(user_id);
@@ -53,6 +61,7 @@ create table if not exists public.accounts (
   counter bigint not null default 0,
   group_name text not null default '',
   logo text not null default '',
+  position double precision not null default 0,
   -- Encrypted TOTP secret (AES-256-GCM with vault key)
   ciphertext text not null, -- base64
   iv text not null,         -- base64

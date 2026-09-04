@@ -201,3 +201,72 @@ export function setAccountMeta(accountId, meta) {
     console.error('Failed to save account metadata', e)
   }
 }
+
+// ── Custom-order cache ──────────────────────────────────────────────────────
+// When the user drags items around, the new order is persisted to the
+// database, but we also mirror it in localStorage so the very next render
+// (before the API call returns) can use the same order. This keeps things
+// consistent across reloads even when the network round-trip is slow.
+const ACCOUNT_ORDER_KEY = '2fa_vault_account_order'
+const GROUP_ORDER_KEY = '2fa_vault_group_order'
+
+function readOrder(key) {
+  try {
+    const raw = localStorage.getItem(key)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed
+    }
+  } catch {
+    /* ignore corrupt cache */
+  }
+  return []
+}
+
+function writeOrder(key, ids) {
+  try {
+    localStorage.setItem(key, JSON.stringify(ids))
+  } catch (e) {
+    console.error('Failed to persist order cache', e)
+  }
+}
+
+export function getCachedAccountOrder() {
+  return readOrder(ACCOUNT_ORDER_KEY)
+}
+
+export function setCachedAccountOrder(ids) {
+  if (!Array.isArray(ids)) return
+  writeOrder(ACCOUNT_ORDER_KEY, ids)
+}
+
+export function getCachedGroupOrder() {
+  return readOrder(GROUP_ORDER_KEY)
+}
+
+export function setCachedGroupOrder(ids) {
+  if (!Array.isArray(ids)) return
+  writeOrder(GROUP_ORDER_KEY, ids)
+}
+
+// Apply a cached order to a freshly-fetched list of items. Items not present
+// in the cache (e.g. just-created accounts) are appended at the end, preserving
+// their existing relative order.
+export function applyCachedOrder(items, cachedIds, getId = (x) => x.id) {
+  if (!Array.isArray(items) || items.length === 0) return items
+  if (!Array.isArray(cachedIds) || cachedIds.length === 0) return items
+  const byId = new Map(items.map((it) => [getId(it), it]))
+  const ordered = []
+  const used = new Set()
+  for (const id of cachedIds) {
+    if (byId.has(id) && !used.has(id)) {
+      ordered.push(byId.get(id))
+      used.add(id)
+    }
+  }
+  for (const it of items) {
+    const id = getId(it)
+    if (!used.has(id)) ordered.push(it)
+  }
+  return ordered
+}

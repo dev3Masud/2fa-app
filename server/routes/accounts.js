@@ -9,6 +9,7 @@ import {
   deleteAccountById,
   publicAccount,
   serializeAccount,
+  reorderAccountsByUser,
 } from '../lib/supabase.js'
 import { getVaultKeyFromReq, getUserIdFromReq } from '../lib/auth.js'
 
@@ -157,6 +158,37 @@ router.post('/', async (req, res) => {
   } catch (err) {
     console.error('[accounts] create error:', err?.message)
     return res.status(500).json({ error: 'Failed to create account' })
+  }
+})
+
+// PATCH /api/accounts/reorder — persist a new account order
+// Body: { orderedIds: string[] } — full ordered list of account IDs.
+router.patch('/reorder', async (req, res) => {
+  const vaultKey = getVaultKeyFromReq(req)
+  const userId = getUserIdFromReq(req)
+  if (!vaultKey || !userId) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+  const { orderedIds } = req.body || {}
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+    return res.status(400).json({ error: 'orderedIds must be a non-empty array' })
+  }
+  // Bound the payload defensively
+  if (orderedIds.length > 500) {
+    return res.status(400).json({ error: 'Too many items (max 500)' })
+  }
+  // Validate every entry is a UUID — never trust client input for DB writes
+  for (const id of orderedIds) {
+    if (typeof id !== 'string' || !UUID_RE.test(id)) {
+      return res.status(400).json({ error: 'Invalid account id in orderedIds' })
+    }
+  }
+  try {
+    const result = await reorderAccountsByUser(userId, orderedIds)
+    return res.status(200).json({ ok: true, updated: result.updated })
+  } catch (err) {
+    console.error('[accounts] reorder error:', err?.message)
+    return res.status(500).json({ error: 'Failed to reorder accounts' })
   }
 })
 

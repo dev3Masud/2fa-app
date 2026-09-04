@@ -3,6 +3,7 @@ import AccountCard from './AccountCard.jsx'
 import { ServiceLogo } from '../lib/icons.jsx'
 import DeleteModal from './DeleteModal.jsx'
 import GroupModal from './GroupModal.jsx'
+import { useDragReorder, reorderArray } from '../lib/useDragReorder.js'
 
 export default function GroupContainer({
   group, // { id, name, logo, count }
@@ -15,12 +16,34 @@ export default function GroupContainer({
   onRenameGroup,
   onDeleteGroup,
   onAddAccountToGroup,
+  onReorderAccounts,
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const [showRenameModal, setShowRenameModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   const isCustomGroup = Boolean(group.id && group.id !== 'ungrouped' && group.id !== 'all')
+
+  // ── Drag-to-reorder accounts inside this group ──────────────────────────
+  const {
+    getDragProps,
+    getDropZoneProps,
+    draggingId,
+    dropTargetId,
+    dropPosition,
+  } = useDragReorder({
+    items: accounts,
+    onReorder: (sourceId, targetId, position) => {
+      if (!onReorderAccounts) return
+      // Only allow reordering if both source and target belong to this group.
+      const src = accounts.find((a) => a.id === sourceId)
+      const tgt = accounts.find((a) => a.id === targetId)
+      if (!src || !tgt) return
+      const reordered = reorderArray(accounts, sourceId, targetId, position)
+      onReorderAccounts(group, reordered)
+    },
+    getId: (a) => a.id,
+  })
 
   return (
     <div className="group-container">
@@ -58,7 +81,7 @@ export default function GroupContainer({
               onClick={() => setShowRenameModal(true)}
               title="Rename Group"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                 <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
@@ -72,7 +95,7 @@ export default function GroupContainer({
               onClick={() => setShowDeleteModal(true)}
               title="Delete Group"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 6h18m-2 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
               </svg>
             </button>
@@ -106,7 +129,7 @@ export default function GroupContainer({
 
       {/* Group Items */}
       {!collapsed && (
-        <div className="group-items">
+        <div className="group-items" {...getDropZoneProps()}>
           {accounts.length === 0 ? (
             <div className="group-empty-hint">
               No accounts in this group yet.{' '}
@@ -122,17 +145,44 @@ export default function GroupContainer({
               const codeData = codes[acc.id]
               const rem =
                 tickerRemaining[acc.id] ?? codeData?.remaining ?? acc.period
+              const isDragging = draggingId === acc.id
+              const isDropTarget = dropTargetId === acc.id
+              const dropClass =
+                isDropTarget && dropPosition === 'before'
+                  ? ' drop-before'
+                  : isDropTarget && dropPosition === 'after'
+                    ? ' drop-after'
+                    : ''
               return (
-                <AccountCard
+                <div
                   key={acc.id}
-                  account={acc}
-                  code={codeData?.code}
-                  remaining={rem}
-                  period={acc.period}
-                  masked={masked}
-                  onDelete={onDeleteAccount}
-                  onUpdate={onUpdateAccount}
-                />
+                  className={`account-row${isDragging ? ' dragging' : ''}${dropClass}`}
+                  {...getDragProps(acc.id)}
+                >
+                  <span
+                    className="drag-handle"
+                    aria-hidden="true"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="9" cy="6" r="1.4" fill="currentColor" />
+                      <circle cx="9" cy="12" r="1.4" fill="currentColor" />
+                      <circle cx="9" cy="18" r="1.4" fill="currentColor" />
+                      <circle cx="15" cy="6" r="1.4" fill="currentColor" />
+                      <circle cx="15" cy="12" r="1.4" fill="currentColor" />
+                      <circle cx="15" cy="18" r="1.4" fill="currentColor" />
+                    </svg>
+                  </span>
+                  <AccountCard
+                    account={acc}
+                    code={codeData?.code}
+                    remaining={rem}
+                    period={acc.period}
+                    masked={masked}
+                    onDelete={onDeleteAccount}
+                    onUpdate={onUpdateAccount}
+                  />
+                </div>
               )
             })
           )}

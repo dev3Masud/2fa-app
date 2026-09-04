@@ -5,6 +5,7 @@ import {
   updateGroup,
   deleteGroup,
   getGroupById,
+  reorderGroupsByUser,
 } from '../lib/supabase.js'
 import { getVaultKeyFromReq, getUserIdFromReq } from '../lib/auth.js'
 
@@ -89,6 +90,35 @@ router.post('/', async (req, res) => {
   } catch (err) {
     console.error('[groups] create error:', err?.message)
     return res.status(500).json({ error: 'Failed to create group' })
+  }
+})
+
+// PATCH /api/groups/reorder — persist a new group order
+// Body: { orderedIds: string[] } — full ordered list of group IDs.
+router.patch('/reorder', async (req, res) => {
+  const vaultKey = getVaultKeyFromReq(req)
+  const userId = getUserIdFromReq(req)
+  if (!vaultKey || !userId) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+  const { orderedIds } = req.body || {}
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+    return res.status(400).json({ error: 'orderedIds must be a non-empty array' })
+  }
+  if (orderedIds.length > 500) {
+    return res.status(400).json({ error: 'Too many items (max 500)' })
+  }
+  for (const id of orderedIds) {
+    if (typeof id !== 'string' || !sanitizeGroupId(id)) {
+      return res.status(400).json({ error: 'Invalid group id in orderedIds' })
+    }
+  }
+  try {
+    const result = await reorderGroupsByUser(userId, orderedIds)
+    return res.status(200).json({ ok: true, updated: result.updated })
+  } catch (err) {
+    console.error('[groups] reorder error:', err?.message)
+    return res.status(500).json({ error: 'Failed to reorder groups' })
   }
 })
 

@@ -11,7 +11,13 @@ import {
   subscribeGroups,
   getAllAccountMeta,
   syncGroupsFromBackend,
+  getCachedAccountOrder,
+  setCachedAccountOrder,
+  getCachedGroupOrder,
+  setCachedGroupOrder,
+  applyCachedOrder,
 } from '../lib/groupsStorage.js'
+import { useDragReorder, reorderArray } from '../lib/useDragReorder.js'
 
 
 export default function Dashboard() {
@@ -80,9 +86,21 @@ export default function Dashboard() {
         throw accResult.reason
       }
 
-      // Sync backend groups into local storage
+      // Sync backend groups into local storage, then apply the cached order
       if (grpResult.status === 'fulfilled' && grpResult.value?.groups) {
         syncGroupsFromBackend(grpResult.value.groups)
+        const cachedGrpOrder = getCachedGroupOrder()
+        if (cachedGrpOrder.length > 0) {
+          const local = getCustomGroups()
+          const ordered = applyCachedOrder(local, cachedGrpOrder, (g) => g.id)
+          // Avoid an extra save() so we don't notify() in a tight loop
+          try {
+            localStorage.setItem('2fa_vault_custom_groups', JSON.stringify(ordered))
+          } catch (e) {
+            console.error('Failed to persist ordered groups to localStorage', e)
+          }
+          setCustomGroups(ordered)
+        }
       }
 
       const res = accResult.value
@@ -115,6 +133,12 @@ export default function Dashboard() {
         }
       })
 
+      // Apply locally-cached order to the merged list, so the user's last
+      // drag-and-drop arrangement survives a reload before the server
+      // responds with a freshly-ordered list.
+      const cachedAccOrder = getCachedAccountOrder()
+      const orderedMerged = applyCachedOrder(merged, cachedAccOrder, (a) => a.id)
+
       // Auto-register any groups from accounts into customGroups if not yet present
       const existingGroups = getCustomGroups()
       const existingNames = new Set(existingGroups.map((g) => g.name.toLowerCase()))
@@ -129,8 +153,8 @@ export default function Dashboard() {
         }
       })
 
-      setAccounts(merged)
-      fetchAllCodes(merged)
+      setAccounts(orderedMerged)
+      fetchAllCodes(orderedMerged)
     } catch (e) {
       if (e.status === 401) {
         window.location.reload()
@@ -385,6 +409,74 @@ export default function Dashboard() {
     )
   }
 
+  // ── Drag-to-reorder: groups ─────────────────────────────────────────────
+  // We only allow reordering of custom groups (not auto-detected ones, since
+  // those have no DB record to update).
+  const {
+    getDragProps: getGroupDragProps,
+    getDropZoneProps: getGroupDropZoneProps,
+    draggingId: draggingGroupId,
+    dropTargetId: groupDropTargetId,
+    dropPosition: groupDropPosition,
+  } = useDragReorder({
+    items: customGroups,
+    onReorder: (sourceId, targetId, position) => {
+      const reordered = reorderArray(
+        customGroups,
+        sourceId,
+        targetId,
+        position,
+        (g) => g.id
+      )
+      // Persist locally + remotely
+      try {
+        localStorage.setItem(
+          '2fa_vault_custom_groups',
+          JSON.stringify(reordered)
+        )
+      } catch (e) {
+        console.error('Failed to persist reordered groups to localStorage', e)
+      }
+      setCachedGroupOrder(reordered.map((g) => g.id))
+      setCustomGroups(reordered)
+      api
+        .reorderGroups(reordered.map((g) => g.id))
+        .catch((err) =>
+          console.warn('[Dashboard] Failed to persist group order', err?.message)
+        )
+    },
+    getId: (g) => g.id,
+  })
+
+  // ── Drag-to-reorder: accounts within a group ─────────────────────────────
+  const handleReorderAccounts = useCallback(
+    (group, reorderedAccounts) => {
+      // Update the master accounts array preserving accounts from other groups
+      setAccounts((prev) => {
+        const byId = new Map(reorderedAccounts.map((a) => [a.id, a]))
+        const next = []
+        for (const a of prev) {
+          const replacement = byId.get(a.id)
+          if (replacement && a.group === group.name) {
+            next.push(replacement)
+          } else {
+            next.push(a)
+          }
+        }
+        // Cache the new global order so a reload shows the same layout
+        setCachedAccountOrder(next.map((a) => a.id))
+        return next
+      })
+      // Send the new order to the server (global — same list as the cache)
+      api
+        .reorderAccounts(reorderedAccounts.map((a) => a.id))
+        .catch((err) =>
+          console.warn('[Dashboard] Failed to persist account order', err?.message)
+        )
+    },
+    []
+  )
+
   async function logout() {
     try {
       await api.logout()
@@ -566,22 +658,65 @@ export default function Dashboard() {
         </div>
       ) : (
         /* ── Group Sections Container List ─────────────────────── */
-        <div className="account-list">
-          {groupedSections.map((section) => (
-            <GroupContainer
-              key={section.id}
-              group={section}
-              accounts={section.accounts}
-              codes={codes}
-              tickerRemaining={tickerRemaining}
-              masked={masked}
-              onDeleteAccount={handleAccountDeleted}
-              onUpdateAccount={handleAccountUpdated}
-              onRenameGroup={handleRenameGroup}
-              onDeleteGroup={handleDeleteGroup}
-              onAddAccountToGroup={handleAddAccountToGroup}
-            />
-          ))}
+        <div className="account-list" {...getGroupDropZoneProps()}>
+          {groupedSections.map((section) => {
+            const isReorderableCustom =
+              section.id !== 'ungrouped' &&
+              !section.id.startsWith('grp_auto_') &&
+              customGroups.some((g) => g.id === section.id)
+            const isGroupDragging = draggingGroupId === section.id
+            const isGroupDropTarget = groupDropTargetId === section.id
+            const groupDropClass =
+              isGroupDropTarget && groupDropPosition === 'before'
+                ? ' drop-before'
+                : isGroupDropTarget && groupDropPosition === 'after'
+                  ? ' drop-after'
+                  : ''
+            return (
+              <div
+                key={section.id}
+                className={`group-wrapper${groupDropClass}`}
+                {...(isReorderableCustom
+                  ? getGroupDragProps(section.id)
+                  : {})}
+              >
+                {isReorderableCustom && (
+                  <span
+                    className="group-drag-handle"
+                    aria-hidden="true"
+                    onClick={(e) => e.stopPropagation()}
+                    title="Drag to reorder group"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="9" cy="6" r="1.5" fill="currentColor" />
+                      <circle cx="9" cy="12" r="1.5" fill="currentColor" />
+                      <circle cx="9" cy="18" r="1.5" fill="currentColor" />
+                      <circle cx="15" cy="6" r="1.5" fill="currentColor" />
+                      <circle cx="15" cy="12" r="1.5" fill="currentColor" />
+                      <circle cx="15" cy="18" r="1.5" fill="currentColor" />
+                    </svg>
+                  </span>
+                )}
+                <div
+                  className={`group-wrapper-inner${isGroupDragging ? ' dragging' : ''}`}
+                >
+                  <GroupContainer
+                    group={section}
+                    accounts={section.accounts}
+                    codes={codes}
+                    tickerRemaining={tickerRemaining}
+                    masked={masked}
+                    onDeleteAccount={handleAccountDeleted}
+                    onUpdateAccount={handleAccountUpdated}
+                    onRenameGroup={handleRenameGroup}
+                    onDeleteGroup={handleDeleteGroup}
+                    onAddAccountToGroup={handleAddAccountToGroup}
+                    onReorderAccounts={handleReorderAccounts}
+                  />
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 

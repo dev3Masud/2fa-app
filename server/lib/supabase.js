@@ -37,6 +37,7 @@ export function publicAccount(row) {
       ? row.group_name
       : (row.group || ''),
     logo: row.logo || '',
+    position: typeof row.position === 'number' ? row.position : 0,
     createdAt: row.created_at,
   }
 }
@@ -118,6 +119,7 @@ export async function listAccountsByUser(userId) {
     .from('accounts')
     .select('*')
     .eq('user_id', userId)
+    .order('position', { ascending: true })
     .order('created_at', { ascending: false })
   if (error) throw error
   return data || []
@@ -269,6 +271,7 @@ export async function listGroupsByUser(userId) {
       .from('groups')
       .select('*')
       .eq('user_id', userId)
+      .order('position', { ascending: true })
       .order('created_at', { ascending: true })
     if (!error && Array.isArray(data)) return data
     if (error && (error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('does not exist'))) {
@@ -282,6 +285,7 @@ export async function listGroupsByUser(userId) {
             id: 'grp_' + gName.toLowerCase().replace(/\s+/g, '_'),
             name: gName,
             logo: acc.logo || '',
+            position: typeof acc.position === 'number' ? acc.position : 0,
             created_at: acc.created_at,
           })
         }
@@ -384,6 +388,146 @@ export async function deleteGroup(userId, groupId, oldName) {
     } catch (err) {
       // ignore column error if column does not exist
     }
+  }
+}
+
+// ── Reorder helpers ──────────────────────────────────────────────────────
+// `orderedIds` is the full ordered list of IDs the client wants (a re-ordered
+// slice is not accepted — we always assign positions for the whole list, so
+// the DB stays in a consistent state even after partial reorders).
+
+// Number of items we are willing to reorder in a single request.
+const REORDER_MAX = 500
+
+// Step used to space out positions. Doubles can hold ~15 decimal digits of
+// precision; 1000 * 500 = 500 000, so 0.002-step between adjacent rows
+// leaves plenty of headroom for new inserts between two existing rows.
+const POSITION_STEP = 1000
+
+function assignPositions(count) {
+  const out = new Array(count)
+  for (let i = 0; i < count; i++) out[i] = (i + 1) * POSITION_STEP
+  return out
+}
+
+export async function reorderAccountsByUser(userId, orderedIds) {
+  if (mocks.reorderAccountsByUser) return mocks.reorderAccountsByUser(userId, orderedIds)
+  if (!Array.isArray(orderedIds)) {
+    throw new Error('orderedIds must be an array')
+  }
+  if (orderedIds.length > REORDER_MAX) {
+    throw new Error(`Too many items to reorder (max ${REORDER_MAX})`)
+  }
+  // First, fetch the rows the user owns so we never write a position to an
+  // account owned by someone else.
+  const sb = getSupabase()
+  const { data: rows, error: fetchErr } = await sb
+    .from('accounts')
+    .select('id')
+    .eq('user_id', userId)
+  if (fetchErr) throw fetchErr
+  const ownedIds = new Set((rows || []).map((r) => r.id))
+
+  // Drop any IDs that don't belong to the user, then dedupe, preserving order.
+  const clean = []
+  const seen = new Set()
+  for (const id of orderedIds) {
+    if (typeof id !== 'string') continue
+    if (!ownedIds.has(id)) continue
+    if (seen.has(id)) continue
+    seen.add(id)
+    clean.push(id)
+  }
+  if (clean.length === 0) return { updated: 0 }
+
+  const positions = assignPositions(clean.length)
+
+  // Batch update: run each update in parallel. Postgres handles concurrent
+  // UPDATEs on the same row correctly because the last write wins, but
+  // assigning distinct positions per row means there are no conflicts.
+  const results = await Promise.allSettled(
+    clean.map((id, idx) =>
+      sb.from('accounts')
+        .update({ position: positions[idx] })
+        .eq('user_id', userId)
+        .eq('id', id)
+    )
+  )
+  let updated = 0
+  for (const r of results) {
+    if (r.status === 'fulfilled' && !r.value.error) updated++
+    else if (r.status === 'fulfilled' && r.value.error) {
+      // Ignore missing-column errors gracefully — old DBs without `position`
+      // will keep working in read-only mode, just without reordering.
+      if (!r.value.error.message?.includes('column') && r.value.error.code !== '42703') {
+        throw r.value.error
+      }
+    } else if (r.status === 'rejected') {
+      throw r.reason
+    }
+  }
+  return { updated }
+}
+
+export async function reorderGroupsByUser(userId, orderedIds) {
+  if (mocks.reorderGroupsByUser) return mocks.reorderGroupsByUser(userId, orderedIds)
+  if (!Array.isArray(orderedIds)) {
+    throw new Error('orderedIds must be an array')
+  }
+  if (orderedIds.length > REORDER_MAX) {
+    throw new Error(`Too many items to reorder (max ${REORDER_MAX})`)
+  }
+  const sb = getSupabase()
+  try {
+    const { data: rows, error: fetchErr } = await sb
+      .from('groups')
+      .select('id')
+      .eq('user_id', userId)
+    if (fetchErr) {
+      if (fetchErr.code === '42P01' || fetchErr.message?.includes('does not exist')) {
+        return { updated: 0 }
+      }
+      throw fetchErr
+    }
+    const ownedIds = new Set((rows || []).map((r) => r.id))
+
+    const clean = []
+    const seen = new Set()
+    for (const id of orderedIds) {
+      if (typeof id !== 'string') continue
+      if (!ownedIds.has(id)) continue
+      if (seen.has(id)) continue
+      seen.add(id)
+      clean.push(id)
+    }
+    if (clean.length === 0) return { updated: 0 }
+
+    const positions = assignPositions(clean.length)
+    const updates = await Promise.allSettled(
+      clean.map((id, idx) =>
+        sb.from('groups')
+          .update({ position: positions[idx] })
+          .eq('user_id', userId)
+          .eq('id', id)
+      )
+    )
+    let updated = 0
+    for (const r of updates) {
+      if (r.status === 'fulfilled' && !r.value.error) updated++
+      else if (r.status === 'fulfilled' && r.value.error) {
+        if (!r.value.error.message?.includes('column') && r.value.error.code !== '42703') {
+          throw r.value.error
+        }
+      } else if (r.status === 'rejected') {
+        throw r.reason
+      }
+    }
+    return { updated }
+  } catch (err) {
+    if (err.code === '42P01' || err.message?.includes('does not exist')) {
+      return { updated: 0 }
+    }
+    throw err
   }
 }
 

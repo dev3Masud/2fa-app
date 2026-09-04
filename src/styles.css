@@ -352,8 +352,103 @@ html, body, #root {
   background: var(--panel);
 }
 
-/* ── Account Card ───────────────────────────────────────── */
-.account-card {
+/* ── Drag-and-drop reorder UI ────────────────────────────── */
+.account-row {
+  position: relative;
+  background: var(--border);
+}
+
+.account-row .drag-handle {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 28px;
+  color: var(--muted);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+  z-index: 2;
+}
+.account-row .drag-handle:active {
+  cursor: grabbing;
+}
+.account-row:hover .drag-handle,
+.account-row.dragging .drag-handle {
+  opacity: 0.8;
+}
+.account-row:hover .drag-handle {
+  color: var(--text);
+}
+
+.account-row.dragging {
+  opacity: 0.45;
+  background: var(--panel);
+}
+
+/* Drop indicator: a 2px glowing line that appears at the top or bottom of
+   the target row, depending on whether the cursor is above or below the
+   midpoint. */
+.account-row.drop-before,
+.group-wrapper.drop-before {
+  box-shadow: inset 0 2px 0 0 var(--primary);
+}
+.account-row.drop-after,
+.group-wrapper.drop-after {
+  box-shadow: inset 0 -2px 0 0 var(--primary);
+}
+
+/* Make room for the absolute-positioned drag handle inside the row */
+.account-row > .account-card {
+  padding-left: 32px;
+}
+
+.group-wrapper {
+  position: relative;
+  margin-bottom: 18px;
+}
+.group-wrapper-inner.dragging {
+  opacity: 0.45;
+}
+.group-wrapper .group-drag-handle {
+  position: absolute;
+  top: 14px;
+  right: -2px;
+  transform: translateX(100%);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  z-index: 3;
+  cursor: grab;
+}
+.group-wrapper:hover .group-drag-handle {
+  display: flex;
+}
+.group-wrapper .group-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* On small screens, always show the drag handles */
+@media (max-width: 640px) {
+  .account-row .drag-handle {
+    opacity: 0.6;
+  }
+  .group-wrapper .group-drag-handle {
+    display: flex;
+    right: 6px;
+    transform: none;
+  }
+}
   background: var(--panel);
   padding: 14px 18px;
   display: flex;
