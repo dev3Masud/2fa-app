@@ -160,8 +160,9 @@ export function deleteCustomGroup(groupId) {
     console.error('Failed to clean account meta on group delete', e)
   }
 
-  // Persist delete to database in background
-  api.deleteGroup(groupId, oldName).catch((err) => {
+  // Persist delete to database in background — server looks up the group
+  // name from the DB before clearing assignments, so we don't need to send it.
+  api.deleteGroup(groupId).catch((err) => {
     console.warn('[groupsStorage] Failed to delete group from DB:', err?.message)
   })
 

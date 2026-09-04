@@ -21,6 +21,14 @@ export default function Login() {
     return () => { cancelled = true }
   }, [])
 
+  // Fallback when getMode returns mode='ready' (the only value the server
+  // returns now) — show the standard "first time" message.
+  useEffect(() => {
+    if (mode && mode.mode === 'ready' && mode.hasAccount === undefined) {
+      setMode((m) => ({ ...(m || {}), hasAccount: false }))
+    }
+  }, [mode])
+
   async function submit(e) {
     e.preventDefault()
     setErr('')

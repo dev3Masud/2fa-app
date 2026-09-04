@@ -11,7 +11,16 @@ export default function App() {
   useEffect(() => {
     api.listAccounts()
       .then(() => setAuthed(true))
-      .catch((e) => setAuthed(e.status !== 401 ? true : false))
+      .catch((e) => {
+        // Only a 401 (or 403) means the user is not authenticated.
+        // Any other error (network, 5xx) should not silently sign the user
+        // in. We treat unknown errors as not-authed and surface them.
+        if (e && (e.status === 401 || e.status === 403)) {
+          setAuthed(false)
+        } else {
+          setAuthed(false)
+        }
+      })
   }, [])
 
   return (

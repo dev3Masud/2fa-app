@@ -16,6 +16,8 @@ const PBKDF2_ITERATIONS = 310000
 
 // ── L2 FIX: Minimum ADMIN_PASS length raised to 16 ───────────────────────────
 const ADMIN_PASS_MIN_LEN = 16
+// Also enforce a sensible upper bound to prevent DoS via long passwords
+const ADMIN_PASS_MAX_LEN = 256
 
 function getAdminUser() {
   return process.env.ADMIN_USER || null
@@ -41,6 +43,12 @@ export function checkConfig() {
     return {
       ok: false,
       message: `ADMIN_PASS must be at least ${ADMIN_PASS_MIN_LEN} characters`,
+    }
+  }
+  if (pass.length > ADMIN_PASS_MAX_LEN) {
+    return {
+      ok: false,
+      message: `ADMIN_PASS must be at most ${ADMIN_PASS_MAX_LEN} characters`,
     }
   }
   return { ok: true, username: user }
@@ -77,7 +85,12 @@ export async function bootstrapUser(username, password) {
 
 export async function authenticateAndUnlock(username, password) {
   const user = await getUserByUsername(username)
-  if (!user) return { error: { status: 401, message: 'Invalid credentials' } }
+  if (!user) {
+    // Run a dummy bcrypt to keep the response time similar whether or not
+    // the user exists (constant-time login response).
+    await bcrypt.compare(password, '$2a$12$0000000000000000000000000000000000000000000000000000')
+    return { error: { status: 401, message: 'Invalid credentials' } }
+  }
   const ok = await bcrypt.compare(password, user.password_hash)
   if (!ok) return { error: { status: 401, message: 'Invalid credentials' } }
   const saltBytes = fromBase64(user.kek_salt)

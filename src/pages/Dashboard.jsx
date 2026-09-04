@@ -149,6 +149,7 @@ export default function Dashboard() {
   // ── Precision Epoch-Synchronized Countdown Timer ──────────────────────────
   useEffect(() => {
     if (accounts.length === 0) return
+    const refreshing = new Set()
 
     function tick() {
       const nowSec = Math.floor(Date.now() / 1000)
@@ -162,27 +163,23 @@ export default function Dashboard() {
         newRemaining[acc.id] = rem
 
         // If code just rolled over (remaining === period), refresh code
-        if (rem === period) {
+        if (rem === period && !refreshing.has(acc.id)) {
           needRefresh.push(acc.id)
+          refreshing.add(acc.id)
         }
       })
 
       setTickerRemaining(newRemaining)
 
-      // Refresh any expired accounts
-      if (needRefresh.length > 0) {
-        needRefresh.forEach(async (id) => {
-          try {
-            const res = await api.getCode(id)
-            setCodes((prev) => ({
-              ...prev,
-              [id]: res,
-            }))
-          } catch (e) {
-            console.error('Failed to refresh code', e)
-          }
-        })
-      }
+      // Refresh any expired accounts (de-duplicated and guarded against races)
+      needRefresh.forEach((id) => {
+        api.getCode(id)
+          .then((res) => {
+            setCodes((prev) => ({ ...prev, [id]: res }))
+          })
+          .catch((e) => console.error('Failed to refresh code', e))
+          .finally(() => refreshing.delete(id))
+      })
     }
 
     tick()
@@ -327,7 +324,7 @@ export default function Dashboard() {
   }, [accounts])
 
   // ── Group Actions ─────────────────────────────────────────────────────────
-  function handleRenameGroup(groupId, newName) {
+  function handleRenameGroup(groupId, newName, newLogo) {
     try {
       const old = customGroups.find((g) => g.id === groupId)?.name
       renameCustomGroup(groupId, newName)
@@ -335,10 +332,14 @@ export default function Dashboard() {
       setAccounts((prev) =>
         prev.map((a) => {
           if (a.group === old) {
-            api.updateAccount(a.id, { group_name: newName }).catch((err) =>
+            const updates = { group_name: newName }
+            if (typeof newLogo === 'string') updates.logo = newLogo
+            api.updateAccount(a.id, updates).catch((err) =>
               console.error('Failed to sync renamed group on server', err)
             )
-            return { ...a, group: newName }
+            const next = { ...a, group: newName }
+            if (typeof newLogo === 'string') next.logo = newLogo
+            return next
           }
           return a
         })

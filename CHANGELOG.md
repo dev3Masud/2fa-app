@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.1] - 2026-09-04
+
+### Security
+* **CSRF protection**: Double-submit-cookie pattern now required for every state-changing request (`POST`, `PUT`, `PATCH`, `DELETE`). Token is constant-time compared and tied to the session.
+* **CORS**: Optional `ALLOWED_ORIGINS` env var. By default only same-origin requests are accepted; cross-origin browser requests are rejected.
+* **Rate limiting**: Per-endpoint write throttling (`/api/accounts`, `/api/qr-parse`, `/api/groups`) in addition to the existing login limiter.
+* **Constant-time login**: Dummy `bcrypt.compare` is now performed for unknown usernames to equalize response time and prevent user enumeration.
+* **Information leak fix**: `/api/mode` no longer discloses whether a user row has been created.
+* **HSTS** is now set in production (1 year, `includeSubDomains`, `preload`).
+* **Input validation**: Strict per-field validation for `/api/qr-parse` (URI cap, secret character class), `/api/totp` (counter range & type), and group IDs (slug format). All control characters and oversized payloads are stripped.
+* **Logo URL sanitization**: Custom logos must be a known brand key, an `https://` URL, or a `data:image/*` URI under 64 KB.
+* **Error messages**: Supabase / internal errors are logged server-side but never returned to clients.
+* **`X-Powered-By` header removed** via `app.disable('x-powered-by')` and Helmet's `hidePoweredBy`.
+* **Static file cache headers**: hashed assets get 1-year immutable cache, `index.html` is forced no-cache.
+* **Request timeouts**: Frontend now aborts requests after 15s to avoid stuck UI states.
+
+### Fixed
+* `App.jsx`: the auth probe previously treated any non-401 response as authenticated; this is now strict.
+* `Dashboard.jsx`: `handleRenameGroup` now propagates the new logo to the server; code-refresh tick no longer races on multiple in-flight refreshes.
+* `groupsStorage.js`: `deleteGroup` no longer passes a client-supplied `oldName`; the server resolves the canonical name from the DB.
+* `parseOtpAuth` now strictly validates the otpauth URL protocol, host, and base32 character set.
+
+### Added
+* `tests/crypto.test.js` and `tests/auth.test.js` — node:test suite covering the crypto primitives and CSRF middleware.
+* `npm test` script.
+
+---
+
 ## [2.0.0] - 2026-09-04
 
 ### Added

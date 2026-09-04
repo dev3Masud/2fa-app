@@ -236,6 +236,31 @@ export async function deleteAccountById(userId, id) {
 
 // ── Groups Database Methods ──────────────────────────────────────────────────
 
+export async function getGroupById(userId, groupId) {
+  if (mocks.getGroupById) return mocks.getGroupById(userId, groupId)
+  const sb = getSupabase()
+  try {
+    const { data, error } = await sb
+      .from('groups')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('id', groupId)
+      .maybeSingle()
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return null
+      }
+      throw error
+    }
+    return data
+  } catch (err) {
+    if (err.code === '42P01' || err.message?.includes('does not exist')) {
+      return null
+    }
+    throw err
+  }
+}
+
 export async function listGroupsByUser(userId) {
   if (mocks.listGroupsByUser) return mocks.listGroupsByUser(userId)
   const sb = getSupabase()
@@ -275,8 +300,14 @@ export async function listGroupsByUser(userId) {
 export async function createGroup(userId, group) {
   if (mocks.createGroup) return mocks.createGroup(userId, group)
   const sb = getSupabase()
+  const safeId =
+    (typeof group.id === 'string' && /^[A-Za-z0-9_:-]{1,64}$/.test(group.id) && group.id) ||
+    'grp_' +
+      Date.now().toString(36) +
+      '_' +
+      Math.random().toString(36).slice(2, 8)
   const payload = {
-    id: group.id || ('grp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7)),
+    id: safeId,
     user_id: userId,
     name: group.name.trim(),
     logo: group.logo || '',

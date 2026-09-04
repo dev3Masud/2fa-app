@@ -2,6 +2,8 @@ import crypto from 'node:crypto'
 import jwt from 'jsonwebtoken'
 
 const COOKIE_NAME = '2fa_session'
+const CSRF_COOKIE_NAME = '2fa_csrf'
+const CSRF_HEADER_NAME = 'x-csrf-token'
 const SESSION_TTL_SECONDS = 60 * 60 * 24 // 24 hours
 
 // ── C1 FIX: Throw hard if SESSION_SECRET is not set ───────────────────────────
@@ -68,6 +70,15 @@ export function verifySession(token) {
   }
 }
 
+// ── CSRF protection: Double-Submit Cookie pattern ────────────────────────────
+// On login we set a CSRF cookie (readable by JS) and embed the same value in
+// the session. The browser then must echo the value in a header on every
+// state-changing request. Cookies are SameSite=Strict so cross-site requests
+// won't include them, and the header is not auto-sent, blocking CSRF.
+function generateCsrfToken() {
+  return crypto.randomBytes(24).toString('base64url')
+}
+
 export function buildCookie(token) {
   const parts = [
     `${COOKIE_NAME}=${token}`,
@@ -82,6 +93,20 @@ export function buildCookie(token) {
   return parts.join('; ')
 }
 
+export function buildCsrfCookie() {
+  const token = generateCsrfToken()
+  const parts = [
+    `${CSRF_COOKIE_NAME}=${token}`,
+    'Path=/',
+    'SameSite=Strict',
+    `Max-Age=${SESSION_TTL_SECONDS}`,
+  ]
+  if (process.env.NODE_ENV === 'production') {
+    parts.push('Secure')
+  }
+  return { token, header: token, cookie: parts.join('; ') }
+}
+
 export function buildClearCookie() {
   const parts = [
     `${COOKIE_NAME}=`,
@@ -93,21 +118,39 @@ export function buildClearCookie() {
   if (process.env.NODE_ENV === 'production') {
     parts.push('Secure')
   }
-  return parts.join('; ')
+  const csrfParts = [
+    `${CSRF_COOKIE_NAME}=`,
+    'Path=/',
+    'SameSite=Strict',
+    'Max-Age=0',
+  ]
+  if (process.env.NODE_ENV === 'production') {
+    csrfParts.push('Secure')
+  }
+  return [parts.join('; '), csrfParts.join('; ')]
 }
 
-export function readCookieFromReq(req) {
+export function readCookieFromReq(req, name = COOKIE_NAME) {
   const raw = req.headers?.cookie || ''
   if (!raw) return null
   for (const part of raw.split(';')) {
     const [k, ...rest] = part.trim().split('=')
-    if (k === COOKIE_NAME) return rest.join('=')
+    if (k === name) return rest.join('=')
   }
   return null
 }
 
+// Constant-time string comparison
+function safeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false
+  const ba = Buffer.from(a)
+  const bb = Buffer.from(b)
+  if (ba.length !== bb.length) return false
+  return crypto.timingSafeEqual(ba, bb)
+}
+
 export function getSession(req) {
-  const token = readCookieFromReq(req)
+  const token = readCookieFromReq(req, COOKIE_NAME)
   if (!token) return null
   return verifySession(token)
 }
@@ -121,4 +164,26 @@ export function getVaultKeyFromReq(req) {
 export function getUserIdFromReq(req) {
   const session = getSession(req)
   return session?.uid || null
+}
+
+// ── Middleware: require a valid session and a matching CSRF token on
+//    any state-changing request. Bypass for GET/HEAD/OPTIONS and for the
+//    login route (no session yet) and for the /api/mode probe route.
+export function requireSession(req, res, next) {
+  const session = getSession(req)
+  if (!session || !session.uid) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+  const method = req.method.toUpperCase()
+  if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
+    return next()
+  }
+  const csrfCookie = readCookieFromReq(req, CSRF_COOKIE_NAME)
+  const csrfHeader =
+    req.headers[CSRF_HEADER_NAME] ||
+    req.headers[CSRF_HEADER_NAME.toUpperCase()]
+  if (!csrfCookie || !csrfHeader || !safeEqual(csrfCookie, csrfHeader)) {
+    return res.status(403).json({ error: 'CSRF token missing or invalid' })
+  }
+  next()
 }

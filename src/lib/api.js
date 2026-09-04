@@ -1,25 +1,62 @@
+const DEFAULT_TIMEOUT_MS = 15_000
+
+// Read the CSRF token from cookie storage. We rely on the server setting a
+// readable cookie (not HttpOnly) named "2fa_csrf" after a successful login.
+function getCsrfToken() {
+  if (typeof document === 'undefined') return ''
+  const raw = document.cookie || ''
+  for (const part of raw.split(';')) {
+    const [k, ...rest] = part.trim().split('=')
+    if (k === '2fa_csrf') return rest.join('=')
+  }
+  return ''
+}
+
 async function request(path, options = {}) {
-  const res = await fetch(path, {
-    credentials: 'include',
-    headers:
-      options.body && !(options.body instanceof FormData)
-        ? { 'Content-Type': 'application/json', ...(options.headers || {}) }
-        : { ...(options.headers || {}) },
-    ...options,
-  })
-  const text = await res.text()
-  let data
+  const headers = {
+    ...(options.body && !(options.body instanceof FormData)
+      ? { 'Content-Type': 'application/json' }
+      : {}),
+    ...(options.headers || {}),
+  }
+  const method = (options.method || 'GET').toUpperCase()
+  if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+    const token = getCsrfToken()
+    if (token) headers['X-CSRF-Token'] = token
+  }
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS)
   try {
-    data = text ? JSON.parse(text) : {}
-  } catch {
-    data = { error: text }
-  }
-  if (!res.ok) {
-    const err = new Error(data.error || `HTTP ${res.status}`)
-    err.status = res.status
+    const res = await fetch(path, {
+      credentials: 'include',
+      headers,
+      signal: controller.signal,
+      ...options,
+    })
+    const text = await res.text()
+    let data
+    try {
+      data = text ? JSON.parse(text) : {}
+    } catch {
+      data = { error: text }
+    }
+    if (!res.ok) {
+      const err = new Error(data.error || `HTTP ${res.status}`)
+      err.status = res.status
+      throw err
+    }
+    return data
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      const e = new Error('Request timed out')
+      e.status = 0
+      throw e
+    }
     throw err
+  } finally {
+    clearTimeout(timer)
   }
-  return data
 }
 
 export const api = {
@@ -92,11 +129,7 @@ export const api = {
       body: JSON.stringify(data),
     })
   },
-  deleteGroup(id, name) {
-    const q = name ? `?name=${encodeURIComponent(name)}` : ''
-    return request(`/api/groups/${encodeURIComponent(id)}${q}`, {
-      method: 'DELETE',
-    })
+  deleteGroup(id) {
+    return request(`/api/groups/${encodeURIComponent(id)}`, { method: 'DELETE' })
   },
 }
-

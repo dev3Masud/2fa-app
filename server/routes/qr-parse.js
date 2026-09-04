@@ -5,20 +5,40 @@ import { getVaultKeyFromReq } from '../lib/auth.js'
 
 // ── M1 FIX: Max allowed dataUri size (2 MB) ───────────────────────────────────
 const MAX_DATA_URI_BYTES = 2 * 1024 * 1024 // 2 MB
+const MAX_OTP_URI_BYTES = 4096
 
 const router = Router()
 
 function parseOtpAuth(uri) {
-  if (!uri || !uri.startsWith('otpauth://')) {
+  if (!uri || typeof uri !== 'string') {
     throw new Error('Not an otpauth URI')
   }
-  const url = new URL(uri)
+  if (uri.length > MAX_OTP_URI_BYTES) {
+    throw new Error('URI too long')
+  }
+  if (!uri.startsWith('otpauth://')) {
+    throw new Error('Not an otpauth URI')
+  }
+  let url
+  try {
+    url = new URL(uri)
+  } catch {
+    throw new Error('Invalid otpauth URI')
+  }
+  if (url.protocol !== 'otpauth:') {
+    throw new Error('Invalid otpauth URI protocol')
+  }
+  if (url.host !== 'totp' && url.host !== 'hotp') {
+    throw new Error('Unsupported OTP type')
+  }
   const type = url.host === 'hotp' ? 'hotp' : 'totp'
   const label = decodeURIComponent(url.pathname.slice(1))
   const params = url.searchParams
   const secret = (params.get('secret') || '').replace(/\s+/g, '').toUpperCase()
   if (!secret) throw new Error('No secret in URI')
+  if (!/^[A-Z2-7]+=*$/.test(secret)) throw new Error('Invalid secret in URI')
   let issuer = params.get('issuer') || ''
+  if (issuer.length > 128) issuer = issuer.slice(0, 128)
   const digits = params.get('digits') ? parseInt(params.get('digits'), 10) : 6
   const period = params.get('period') ? parseInt(params.get('period'), 10) : 30
   const algorithm = (params.get('algorithm') || 'SHA1').toUpperCase()
@@ -34,14 +54,14 @@ function parseOtpAuth(uri) {
     accountLabel = accPart.trim()
   }
   return {
-    label: accountLabel,
-    issuer,
+    label: accountLabel.slice(0, 64),
+    issuer: issuer.slice(0, 64),
     secret,
     type,
-    digits,
-    period,
-    algorithm,
-    counter,
+    digits: Number.isFinite(digits) ? Math.min(8, Math.max(6, digits)) : 6,
+    period: Number.isFinite(period) ? Math.min(60, Math.max(15, period)) : 30,
+    algorithm: ['SHA1', 'SHA256', 'SHA512'].includes(algorithm) ? algorithm : 'SHA1',
+    counter: Number.isFinite(counter) ? Math.max(0, counter) : 0,
   }
 }
 
@@ -78,7 +98,7 @@ router.post('/', async (req, res) => {
   }
 
   // ── M1 FIX: Reject oversized payloads before any processing ─────────────────
-  if (dataUri.length > MAX_DATA_URI_BYTES) {
+  if (typeof dataUri !== 'string' || dataUri.length > MAX_DATA_URI_BYTES) {
     return res.status(413).json({ error: 'Image too large (max 2 MB)' })
   }
 

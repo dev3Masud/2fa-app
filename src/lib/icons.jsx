@@ -698,6 +698,8 @@ export function ServiceLogo({
         <img
           src={logo}
           alt={issuer || label}
+          referrerPolicy="no-referrer"
+          loading="lazy"
           onError={() => setImgError(true)}
           style={{ width: '100%', height: '100%', objectFit: 'contain' }}
         />

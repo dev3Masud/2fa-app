@@ -42,6 +42,10 @@ Instead, report vulnerabilities privately:
 
 * **Zero-Knowledge Encryption**: Secrets are encrypted at rest with AES-256-GCM using a 32-byte key derived from the master password (PBKDF2 with SHA-256, 310,000 iterations).
 * **Supabase Isolation**: The database only stores encrypted ciphertexts, IVs, and authentication tags. Even with full database access, secrets cannot be decrypted without the user's master password.
-* **Session Security**: Session tokens are signed using HMAC-SHA256, transmitted exclusively over HTTPS (`SameSite=Strict`, `HttpOnly`, `Secure` cookies).
-* **Rate Limiting**: Express rate limiting mitigates brute-force authentication attacks on all `/api/login` endpoints.
-* **HTTP Hardening**: Helmet sets security headers (`Content-Security-Policy`, `X-Frame-Options: DENY`, `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`).
+* **Session Security**: Session tokens are signed using HS256, transmitted exclusively over HTTPS (`SameSite=Strict`, `HttpOnly`, `Secure` cookies). Vault key is bound to the session and AES-256-GCM-wrapped using an HKDF-derived key.
+* **CSRF Protection**: Double-submit-cookie CSRF tokens are required on every state-changing request. Tokens are tied to the session and validated with constant-time comparison.
+* **Rate Limiting**: Express rate limiting mitigates brute-force authentication attacks on all `/api/login` endpoints, plus per-endpoint throttling on write operations.
+* **HTTP Hardening**: Helmet sets security headers (`Content-Security-Policy`, `X-Frame-Options: DENY`, `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`).
+* **Input Validation**: All UUIDs are format-validated, request bodies are size-limited (2 MB), and user-supplied strings are sanitized against control characters and oversized payloads.
+* **Information Leak Prevention**: Internal error messages and Supabase errors are not exposed to clients; admin user existence is not disclosed via the public `/api/mode` endpoint.
+* **Constant-Time Login**: A dummy bcrypt comparison is performed for unknown usernames to equalize login response times.

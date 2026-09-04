@@ -1,25 +1,20 @@
 import { Router } from 'express'
 import { checkConfig } from '../lib/users.js'
-import { getUserByUsername } from '../lib/supabase.js'
 
 const router = Router()
 
-// ── M2 FIX: No longer exposes admin username or userExists to unauthenticated callers ──
+// ── M2 FIX: No longer reveals admin username or userExists to unauthenticated callers ──
+// Always return the same response shape to prevent timing/structure fingerprinting.
 router.get('/', async (req, res) => {
   const cfg = checkConfig()
   if (!cfg.ok) {
-    // Only reveal that the server is misconfigured — not why
-    return res.status(200).json({ mode: 'misconfigured' })
+    return res.status(200).json({ mode: 'ready' })
   }
-  try {
-    const user = await getUserByUsername(cfg.username)
-    return res.status(200).json({
-      mode: 'ready',
-      hasAccount: !!user,
-    })
-  } catch {
-    return res.status(200).json({ mode: 'ready', hasAccount: false })
-  }
+  // Server is configured. We deliberately do not reveal whether a user row
+  // has been created — that information is not required for the client and
+  // would allow attackers to enumerate state. The login endpoint will create
+  // the user on first successful sign-in.
+  return res.status(200).json({ mode: 'ready' })
 })
 
 export default router

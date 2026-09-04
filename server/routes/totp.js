@@ -10,6 +10,37 @@ const UUID_RE =
 
 const router = Router()
 
+function generateCode(rec, vaultKey, counter) {
+  const encBlob = {
+    ciphertext: Buffer.from(rec.ciphertext, 'base64'),
+    iv: Buffer.from(rec.iv, 'base64'),
+    authTag: Buffer.from(rec.auth_tag, 'base64'),
+  }
+  const secretStr = decryptSecret(encBlob, vaultKey)
+  const secret = Secret.fromBase32(secretStr)
+  if (rec.type === 'hotp') {
+    const safeCounter = Number.isFinite(counter)
+      ? Math.max(0, Math.min(2 ** 31 - 1, Math.floor(counter)))
+      : Math.max(0, Math.min(2 ** 31 - 1, Math.floor(Number(rec.counter) || 0)))
+    const hotp = new HOTP({
+      secret,
+      algorithm: rec.algorithm,
+      digits: rec.digits,
+      counter: safeCounter,
+    })
+    return { code: hotp.generate(), remaining: null, counter: hotp.counter }
+  }
+  const totp = new TOTP({
+    secret,
+    algorithm: rec.algorithm,
+    digits: rec.digits,
+    period: rec.period,
+  })
+  const now = Date.now()
+  const remaining = totp.period - (Math.floor(now / 1000) % totp.period)
+  return { code: totp.generate(), remaining, counter: null }
+}
+
 // GET /api/totp — batch fetch live codes for all accounts of the user
 router.get('/', async (req, res) => {
   const vaultKey = getVaultKeyFromReq(req)
@@ -41,34 +72,6 @@ router.get('/', async (req, res) => {
 })
 
 
-function generateCode(rec, vaultKey, counter) {
-  const encBlob = {
-    ciphertext: Buffer.from(rec.ciphertext, 'base64'),
-    iv: Buffer.from(rec.iv, 'base64'),
-    authTag: Buffer.from(rec.auth_tag, 'base64'),
-  }
-  const secretStr = decryptSecret(encBlob, vaultKey)
-  const secret = Secret.fromBase32(secretStr)
-  if (rec.type === 'hotp') {
-    const hotp = new HOTP({
-      secret,
-      algorithm: rec.algorithm,
-      digits: rec.digits,
-      counter: counter ?? Number(rec.counter) ?? 0,
-    })
-    return { code: hotp.generate(), remaining: null, counter: hotp.counter }
-  }
-  const totp = new TOTP({
-    secret,
-    algorithm: rec.algorithm,
-    digits: rec.digits,
-    period: rec.period,
-  })
-  const now = Date.now()
-  const remaining = totp.period - (Math.floor(now / 1000) % totp.period)
-  return { code: totp.generate(), remaining, counter: null }
-}
-
 // GET /api/totp/:id
 router.get('/:id', async (req, res) => {
   const vaultKey = getVaultKeyFromReq(req)
@@ -81,9 +84,14 @@ router.get('/:id', async (req, res) => {
   if (!UUID_RE.test(id)) {
     return res.status(400).json({ error: 'Invalid account id' })
   }
-  const rawCounter = req.query.counter
-  const counter =
-    rawCounter != null && rawCounter !== '' ? Number(rawCounter) : undefined
+  let counter
+  if (req.query.counter != null && req.query.counter !== '') {
+    const n = Number(req.query.counter)
+    if (!Number.isFinite(n) || n < 0 || n > 2 ** 31 - 1 || !Number.isInteger(n)) {
+      return res.status(400).json({ error: 'Invalid counter' })
+    }
+    counter = n
+  }
 
   try {
     const rec = await getAccountById(userId, id)
