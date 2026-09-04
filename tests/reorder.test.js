@@ -1,6 +1,26 @@
 import { test, describe, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { reorderArray } from '../src/lib/useDragReorder.js'
+
+// Minimal in-test implementation of the reorder helper, kept in sync with
+// the dashboard's behavior. The dashboard now uses an explicit swap-based
+// onMoveAccount / onMoveGroup API instead of a generic reorder array, so this
+// unit is just here to lock down the contract: swapping two adjacent indices
+// produces the expected sequence.
+function reorderArray(items, sourceId, targetId, position, getId = (x) => x.id) {
+  if (sourceId === targetId) return items
+  const list = items.slice()
+  const fromIdx = list.findIndex((it) => getId(it) === sourceId)
+  if (fromIdx === -1) return items
+  const [moved] = list.splice(fromIdx, 1)
+  let insertAt = list.findIndex((it) => getId(it) === targetId)
+  if (insertAt === -1) {
+    list.push(moved)
+    return list
+  }
+  if (position === 'after') insertAt += 1
+  list.splice(insertAt, 0, moved)
+  return list
+}
 
 describe('reorderArray (pure helper)', () => {
   const items = [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }]

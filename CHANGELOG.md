@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.3] - 2026-09-04
+
+### Changed
+* **Reorder UI replaced drag-and-drop with explicit up/down arrows.** Click the new **Edit** button in the top bar to enter position-edit mode — every group header shows up/down arrows (disabled at the top/bottom of the list) and every account row reveals up/down arrows on its right edge. Click **✓ Done** to exit. Reorders are still persisted to the database via the same `/api/accounts/reorder` and `/api/groups/reorder` endpoints and still mirror to localStorage.
+* **Group header no longer overlaps the first account row.** The redundant `border-bottom` on `.group-header` was removed so the single hairline separator provided by `.group-items` (background + 1px gap) cleanly separates the header from the first row.
+
+### Removed
+* Native HTML5 drag-and-drop reorder hook (`useDragReorder.js`) and all related CSS (drag handles, drop indicators, dimmed-dragging state).
+
+---
+
 ## [2.0.2] - 2026-09-04
 
 ### Fixed
@@ -17,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 * `GET /api/csrf` — issues a fresh `2fa_csrf` cookie + returns the token in the JSON body. Requires an authenticated session but is exempt from the CSRF check (no chicken-and-egg).
-* **Drag-to-reorder for both custom groups and 2FA accounts inside a group.** Drag the grip handle (visible on hover) on any group header or account row to rearrange; the new order is persisted to the database immediately and also cached in `localStorage` so it survives a reload. Powered by a small dependency-free `useDragReorder` hook with native HTML5 drag-and-drop.
+* **Drag-to-reorder for both custom groups and 2FA accounts inside a group.** Drag the grip handle (visible on hover) on any group header or account row to rearrange; the new order is persisted to the database immediately and also cached in `localStorage` so it survives a reload. Powered by a small dependency-free `useDragReorder` hook with native HTML5 drag-and-drop. *(Superseded in 2.0.3 by explicit up/down arrows.)*
   * `PATCH /api/accounts/reorder` and `PATCH /api/groups/reorder` accept a full ordered `orderedIds` array, validate ownership, then assign evenly-spaced `double precision` positions in a single batch.
   * `public.accounts` and `public.groups` gain a `position double precision` column; new listings order by `position` then `created_at`. The SQL migration is idempotent (`add column if not exists`) so existing databases upgrade in place.
 * New tests in `tests/auth.test.js` covering `SameSite=Lax`, Vercel-only (`VERCEL=1`, no `NODE_ENV`) cookie hardening, and the session-cookie attributes.

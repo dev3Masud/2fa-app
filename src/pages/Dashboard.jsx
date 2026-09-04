@@ -17,7 +17,6 @@ import {
   setCachedGroupOrder,
   applyCachedOrder,
 } from '../lib/groupsStorage.js'
-import { useDragReorder, reorderArray } from '../lib/useDragReorder.js'
 
 
 export default function Dashboard() {
@@ -33,6 +32,7 @@ export default function Dashboard() {
   const [activeGroupFilter, setActiveGroupFilter] = useState('ALL')
   const [masked, setMasked] = useState(false)
   const [customGroups, setCustomGroups] = useState([])
+  const [editMode, setEditMode] = useState(false)
 
   const searchInputRef = useRef()
 
@@ -409,73 +409,88 @@ export default function Dashboard() {
     )
   }
 
-  // ── Drag-to-reorder: groups ─────────────────────────────────────────────
-  // We only allow reordering of custom groups (not auto-detected ones, since
-  // those have no DB record to update).
-  const {
-    getDragProps: getGroupDragProps,
-    getDropZoneProps: getGroupDropZoneProps,
-    draggingId: draggingGroupId,
-    dropTargetId: groupDropTargetId,
-    dropPosition: groupDropPosition,
-  } = useDragReorder({
-    items: customGroups,
-    onReorder: (sourceId, targetId, position) => {
-      const reordered = reorderArray(
-        customGroups,
-        sourceId,
-        targetId,
-        position,
-        (g) => g.id
-      )
-      // Persist locally + remotely
+  // ── Move-account-within-group via up/down arrow buttons ──────────────────
+  // Swaps the source account with the target account. We only need to swap
+  // positions inside the same group's slice; other groups stay untouched.
+  const handleMoveAccount = useCallback((group, target, source) => {
+    if (!group || !target || !source || target.id === source.id) return
+    setAccounts((prev) => {
+      // Build the new ordering for the whole list by rebuilding each group's
+      // sub-list individually.
+      const next = []
+      const groups = new Map()
+      for (const acc of prev) {
+        const k = (acc.group || '').toLowerCase()
+        if (!groups.has(k)) groups.set(k, [])
+        groups.get(k).push(acc)
+      }
+      // Apply the swap inside the relevant group slice.
+      const k = (group.name || '').toLowerCase()
+      const slice = groups.get(k) || []
+      const sIdx = slice.findIndex((a) => a.id === source.id)
+      const tIdx = slice.findIndex((a) => a.id === target.id)
+      if (sIdx !== -1 && tIdx !== -1) {
+        const tmp = slice[sIdx]
+        slice[sIdx] = slice[tIdx]
+        slice[tIdx] = tmp
+      }
+      // Re-assemble in the same outer order as before.
+      for (const acc of prev) {
+        const key = (acc.group || '').toLowerCase()
+        const sliceForKey = groups.get(key)
+        if (sliceForKey && sliceForKey.length > 0) {
+          next.push(sliceForKey.shift())
+        }
+      }
+      // Cache the new global order so a reload shows the same layout
+      setCachedAccountOrder(next.map((a) => a.id))
+      // Send the new order to the server (global — same list as the cache)
+      api
+        .reorderAccounts(next.map((a) => a.id))
+        .catch((err) =>
+          console.warn('[Dashboard] Failed to persist account order', err?.message)
+        )
+      return next
+    })
+  }, [])
+
+  // ── Move-group up/down via the header arrows ──────────────────────────────
+  // Swaps the group with its neighbour in `customGroups`, persists locally,
+  // and pushes the new global order to the server.
+  const handleMoveGroup = useCallback((group, direction) => {
+    setCustomGroups((prev) => {
+      const idx = prev.findIndex((g) => g.id === group.id)
+      const targetIdx = idx + direction
+      if (idx === -1 || targetIdx < 0 || targetIdx >= prev.length) return prev
+      const next = prev.slice()
+      const tmp = next[idx]
+      next[idx] = next[targetIdx]
+      next[targetIdx] = tmp
       try {
         localStorage.setItem(
           '2fa_vault_custom_groups',
-          JSON.stringify(reordered)
+          JSON.stringify(next)
         )
       } catch (e) {
         console.error('Failed to persist reordered groups to localStorage', e)
       }
-      setCachedGroupOrder(reordered.map((g) => g.id))
-      setCustomGroups(reordered)
+      setCachedGroupOrder(next.map((g) => g.id))
       api
-        .reorderGroups(reordered.map((g) => g.id))
+        .reorderGroups(next.map((g) => g.id))
         .catch((err) =>
           console.warn('[Dashboard] Failed to persist group order', err?.message)
         )
-    },
-    getId: (g) => g.id,
-  })
+      return next
+    })
+  }, [])
 
-  // ── Drag-to-reorder: accounts within a group ─────────────────────────────
-  const handleReorderAccounts = useCallback(
-    (group, reorderedAccounts) => {
-      // Update the master accounts array preserving accounts from other groups
-      setAccounts((prev) => {
-        const byId = new Map(reorderedAccounts.map((a) => [a.id, a]))
-        const next = []
-        for (const a of prev) {
-          const replacement = byId.get(a.id)
-          if (replacement && a.group === group.name) {
-            next.push(replacement)
-          } else {
-            next.push(a)
-          }
-        }
-        // Cache the new global order so a reload shows the same layout
-        setCachedAccountOrder(next.map((a) => a.id))
-        return next
-      })
-      // Send the new order to the server (global — same list as the cache)
-      api
-        .reorderAccounts(reorderedAccounts.map((a) => a.id))
-        .catch((err) =>
-          console.warn('[Dashboard] Failed to persist account order', err?.message)
-        )
-    },
-    []
-  )
+  // Memoized map from id → group index in `customGroups`, used to enable/disable
+  // the up/down arrows on each group header.
+  const groupIndexById = useMemo(() => {
+    const m = new Map()
+    customGroups.forEach((g, i) => m.set(g.id, i))
+    return m
+  }, [customGroups])
 
   async function logout() {
     try {
@@ -527,6 +542,15 @@ export default function Dashboard() {
             title="Create a new custom group"
           >
             + Group
+          </button>
+
+          {/* Edit Position Toggle — reveals up/down arrows on every row and group */}
+          <button
+            className={`btn ${editMode ? 'btn-primary' : ''}`}
+            onClick={() => setEditMode((v) => !v)}
+            title={editMode ? 'Done editing positions' : 'Edit positions of groups and accounts'}
+          >
+            {editMode ? '✓ Done' : 'Edit'}
           </button>
 
           {/* Add Account Button */}
@@ -658,62 +682,39 @@ export default function Dashboard() {
         </div>
       ) : (
         /* ── Group Sections Container List ─────────────────────── */
-        <div className="account-list" {...getGroupDropZoneProps()}>
+        <div className="account-list">
           {groupedSections.map((section) => {
             const isReorderableCustom =
               section.id !== 'ungrouped' &&
               !section.id.startsWith('grp_auto_') &&
               customGroups.some((g) => g.id === section.id)
-            const isGroupDragging = draggingGroupId === section.id
-            const isGroupDropTarget = groupDropTargetId === section.id
-            const groupDropClass =
-              isGroupDropTarget && groupDropPosition === 'before'
-                ? ' drop-before'
-                : isGroupDropTarget && groupDropPosition === 'after'
-                  ? ' drop-after'
-                  : ''
+            const gIndex = isReorderableCustom
+              ? groupIndexById.get(section.id) ?? -1
+              : -1
             return (
               <div
                 key={section.id}
-                className={`group-wrapper${groupDropClass}`}
-                {...(isReorderableCustom
-                  ? getGroupDragProps(section.id)
-                  : {})}
+                className={`group-wrapper${editMode ? ' edit-mode' : ''}`}
               >
-                {isReorderableCustom && (
-                  <span
-                    className="group-drag-handle"
-                    aria-hidden="true"
-                    onClick={(e) => e.stopPropagation()}
-                    title="Drag to reorder group"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="9" cy="6" r="1.5" fill="currentColor" />
-                      <circle cx="9" cy="12" r="1.5" fill="currentColor" />
-                      <circle cx="9" cy="18" r="1.5" fill="currentColor" />
-                      <circle cx="15" cy="6" r="1.5" fill="currentColor" />
-                      <circle cx="15" cy="12" r="1.5" fill="currentColor" />
-                      <circle cx="15" cy="18" r="1.5" fill="currentColor" />
-                    </svg>
-                  </span>
-                )}
-                <div
-                  className={`group-wrapper-inner${isGroupDragging ? ' dragging' : ''}`}
-                >
-                  <GroupContainer
-                    group={section}
-                    accounts={section.accounts}
-                    codes={codes}
-                    tickerRemaining={tickerRemaining}
-                    masked={masked}
-                    onDeleteAccount={handleAccountDeleted}
-                    onUpdateAccount={handleAccountUpdated}
-                    onRenameGroup={handleRenameGroup}
-                    onDeleteGroup={handleDeleteGroup}
-                    onAddAccountToGroup={handleAddAccountToGroup}
-                    onReorderAccounts={handleReorderAccounts}
-                  />
-                </div>
+                <GroupContainer
+                  group={section}
+                  accounts={section.accounts}
+                  codes={codes}
+                  tickerRemaining={tickerRemaining}
+                  masked={masked}
+                  onDeleteAccount={handleAccountDeleted}
+                  onUpdateAccount={handleAccountUpdated}
+                  onRenameGroup={handleRenameGroup}
+                  onDeleteGroup={handleDeleteGroup}
+                  onAddAccountToGroup={handleAddAccountToGroup}
+                  onMoveAccount={editMode ? handleMoveAccount : undefined}
+                  onMoveGroup={editMode ? handleMoveGroup : undefined}
+                  canMoveGroupUp={editMode && gIndex > 0}
+                  canMoveGroupDown={
+                    editMode && gIndex >= 0 && gIndex < customGroups.length - 1
+                  }
+                  showGroupArrows={editMode && isReorderableCustom}
+                />
               </div>
             )
           })}

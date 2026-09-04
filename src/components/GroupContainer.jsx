@@ -3,7 +3,6 @@ import AccountCard from './AccountCard.jsx'
 import { ServiceLogo } from '../lib/icons.jsx'
 import DeleteModal from './DeleteModal.jsx'
 import GroupModal from './GroupModal.jsx'
-import { useDragReorder, reorderArray } from '../lib/useDragReorder.js'
 
 export default function GroupContainer({
   group, // { id, name, logo, count }
@@ -16,34 +15,27 @@ export default function GroupContainer({
   onRenameGroup,
   onDeleteGroup,
   onAddAccountToGroup,
-  onReorderAccounts,
+  onMoveAccount,
+  onMoveGroup,
+  canMoveGroupUp,
+  canMoveGroupDown,
+  showGroupArrows = false,
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const [showRenameModal, setShowRenameModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   const isCustomGroup = Boolean(group.id && group.id !== 'ungrouped' && group.id !== 'all')
+  const reorderable =
+    Boolean(onMoveAccount) && accounts.length > 0 && !collapsed
 
-  // ── Drag-to-reorder accounts inside this group ──────────────────────────
-  const {
-    getDragProps,
-    getDropZoneProps,
-    draggingId,
-    dropTargetId,
-    dropPosition,
-  } = useDragReorder({
-    items: accounts,
-    onReorder: (sourceId, targetId, position) => {
-      if (!onReorderAccounts) return
-      // Only allow reordering if both source and target belong to this group.
-      const src = accounts.find((a) => a.id === sourceId)
-      const tgt = accounts.find((a) => a.id === targetId)
-      if (!src || !tgt) return
-      const reordered = reorderArray(accounts, sourceId, targetId, position)
-      onReorderAccounts(group, reordered)
-    },
-    getId: (a) => a.id,
-  })
+  function move(idx, dir) {
+    const target = idx + dir
+    if (target < 0 || target >= accounts.length) return
+    if (typeof onMoveAccount === 'function') {
+      onMoveAccount(group, accounts[target], accounts[idx])
+    }
+  }
 
   return (
     <div className="group-container">
@@ -129,7 +121,7 @@ export default function GroupContainer({
 
       {/* Group Items */}
       {!collapsed && (
-        <div className="group-items" {...getDropZoneProps()}>
+        <div className="group-items">
           {accounts.length === 0 ? (
             <div className="group-empty-hint">
               No accounts in this group yet.{' '}
@@ -141,38 +133,12 @@ export default function GroupContainer({
               </button>
             </div>
           ) : (
-            accounts.map((acc) => {
+            accounts.map((acc, idx) => {
               const codeData = codes[acc.id]
               const rem =
                 tickerRemaining[acc.id] ?? codeData?.remaining ?? acc.period
-              const isDragging = draggingId === acc.id
-              const isDropTarget = dropTargetId === acc.id
-              const dropClass =
-                isDropTarget && dropPosition === 'before'
-                  ? ' drop-before'
-                  : isDropTarget && dropPosition === 'after'
-                    ? ' drop-after'
-                    : ''
               return (
-                <div
-                  key={acc.id}
-                  className={`account-row${isDragging ? ' dragging' : ''}${dropClass}`}
-                  {...getDragProps(acc.id)}
-                >
-                  <span
-                    className="drag-handle"
-                    aria-hidden="true"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="9" cy="6" r="1.4" fill="currentColor" />
-                      <circle cx="9" cy="12" r="1.4" fill="currentColor" />
-                      <circle cx="9" cy="18" r="1.4" fill="currentColor" />
-                      <circle cx="15" cy="6" r="1.4" fill="currentColor" />
-                      <circle cx="15" cy="12" r="1.4" fill="currentColor" />
-                      <circle cx="15" cy="18" r="1.4" fill="currentColor" />
-                    </svg>
-                  </span>
+                <div key={acc.id} className="account-row">
                   <AccountCard
                     account={acc}
                     code={codeData?.code}
@@ -182,10 +148,65 @@ export default function GroupContainer({
                     onDelete={onDeleteAccount}
                     onUpdate={onUpdateAccount}
                   />
+                  {reorderable && (
+                    <div className="reorder-controls" aria-label="Reorder account">
+                      <button
+                        className="reorder-btn"
+                        disabled={idx === 0}
+                        onClick={() => move(idx, -1)}
+                        title="Move up"
+                        aria-label="Move up"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="18 15 2 15 10 9" />
+                        </svg>
+                      </button>
+                      <button
+                        className="reorder-btn"
+                        disabled={idx === accounts.length - 1}
+                        onClick={() => move(idx, 1)}
+                        title="Move down"
+                        aria-label="Move down"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="6 9 18 9 12 15" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             })
           )}
+        </div>
+      )}
+
+      {/* Group-level reorder arrows (rendered outside the header so they sit
+          vertically centered on the group block) */}
+      {showGroupArrows && isCustomGroup && (
+        <div className="group-reorder-controls" aria-label="Reorder group">
+          <button
+            className="group-reorder-btn"
+            disabled={!canMoveGroupUp}
+            onClick={() => onMoveGroup && onMoveGroup(group, -1)}
+            title="Move group up"
+            aria-label="Move group up"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="18 15 12 9 6 15" />
+            </svg>
+          </button>
+          <button
+            className="group-reorder-btn"
+            disabled={!canMoveGroupDown}
+            onClick={() => onMoveGroup && onMoveGroup(group, 1)}
+            title="Move group down"
+            aria-label="Move group down"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
         </div>
       )}
 

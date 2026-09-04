@@ -281,7 +281,6 @@ html, body, #root {
   justify-content: space-between;
   padding: 12px 16px;
   background: rgba(26, 35, 55, 0.5);
-  border-bottom: 1px solid var(--border);
   cursor: pointer;
   user-select: none;
 }
@@ -355,100 +354,108 @@ html, body, #root {
 /* ── Drag-and-drop reorder UI ────────────────────────────── */
 .account-row {
   position: relative;
+  display: flex;
+  align-items: stretch;
   background: var(--border);
 }
+.account-row > .account-card {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 
-.account-row .drag-handle {
-  position: absolute;
-  left: 4px;
-  top: 50%;
-  transform: translateY(-50%);
+/* Reorder controls for a single row. Visible on hover, or always in edit mode. */
+.account-row .reorder-controls {
+  flex: 0 0 auto;
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+}
+.account-row:hover .reorder-controls,
+.group-wrapper.edit-mode .account-row .reorder-controls {
   display: flex;
+}
+.reorder-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 28px;
-  color: var(--muted);
-  cursor: grab;
-  opacity: 0;
-  transition: opacity 0.15s ease, color 0.15s ease;
-  z-index: 2;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
-.account-row .drag-handle:active {
-  cursor: grabbing;
-}
-.account-row:hover .drag-handle,
-.account-row.dragging .drag-handle {
-  opacity: 0.8;
-}
-.account-row:hover .drag-handle {
+.reorder-btn:hover:not(:disabled) {
+  background: var(--panel-2);
   color: var(--text);
+  border-color: var(--border-hover);
+}
+.reorder-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
-.account-row.dragging {
-  opacity: 0.45;
-  background: var(--panel);
-}
-
-/* Drop indicator: a 2px glowing line that appears at the top or bottom of
-   the target row, depending on whether the cursor is above or below the
-   midpoint. */
-.account-row.drop-before,
-.group-wrapper.drop-before {
-  box-shadow: inset 0 2px 0 0 var(--primary);
-}
-.account-row.drop-after,
-.group-wrapper.drop-after {
-  box-shadow: inset 0 -2px 0 0 var(--primary);
-}
-
-/* Make room for the absolute-positioned drag handle inside the row */
-.account-row > .account-card {
-  padding-left: 32px;
-}
-
+/* Group-level reorder arrows, rendered as a small vertical bar on the left side
+  of the group container, only in edit mode. */
 .group-wrapper {
   position: relative;
   margin-bottom: 18px;
 }
-.group-wrapper-inner.dragging {
-  opacity: 0.45;
-}
-.group-wrapper .group-drag-handle {
+.group-reorder-controls {
   position: absolute;
   top: 14px;
-  right: -2px;
-  transform: translateX(100%);
+  left: -34px;
   display: none;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: var(--radius-sm);
+  flex-direction: column;
+  gap: 4px;
+  z-index: 4;
+}
+.group-wrapper.edit-mode .group-reorder-controls {
+  display: flex;
+}
+.group-reorder-btn {
   background: var(--panel-2);
   border: 1px solid var(--border);
   color: var(--muted);
-  z-index: 3;
-  cursor: grab;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
-.group-wrapper:hover .group-drag-handle {
-  display: flex;
+.group-reorder-btn:hover:not(:disabled) {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--border-hover);
 }
-.group-wrapper .group-drag-handle:active {
-  cursor: grabbing;
+.group-reorder-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
-/* On small screens, always show the drag handles */
 @media (max-width: 640px) {
-  .account-row .drag-handle {
-    opacity: 0.6;
+  .group-reorder-controls {
+    left: auto;
+    right: 8px;
+    top: 8px;
+    flex-direction: row;
   }
-  .group-wrapper .group-drag-handle {
-    display: flex;
-    right: 6px;
-    transform: none;
+  .account-row .reorder-controls {
+    padding: 0 6px;
   }
 }
+
+.account-card {
   background: var(--panel);
   padding: 14px 18px;
   display: flex;
