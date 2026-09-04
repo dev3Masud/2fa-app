@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.2] - 2026-09-04
+
+### Fixed
+* **CSRF false-positive "CSRF token missing or invalid" on Vercel deployments.** The `2fa_csrf` cookie was set with `SameSite=Strict` and was silently dropped by some browsers / Vercel preview-URL redirects right after login, leaving the client with no token to echo back. Three layers of defence are now in place:
+  * The CSRF cookie now uses `SameSite=Lax` (CSRF protection still holds — the security property is that the header is not auto-sent cross-site, not the cookie itself).
+  * `Secure` is now also added whenever `VERCEL=1`, since Vercel does not set `NODE_ENV=production` by default.
+  * The client now caches the CSRF token in memory (primed from the login response body) and, on any 403 CSRF error, transparently calls the new `GET /api/csrf` endpoint to re-issue a fresh token and retries the original request once.
+
+### Added
+* `GET /api/csrf` — issues a fresh `2fa_csrf` cookie + returns the token in the JSON body. Requires an authenticated session but is exempt from the CSRF check (no chicken-and-egg).
+* New tests in `tests/auth.test.js` covering `SameSite=Lax`, Vercel-only (`VERCEL=1`, no `NODE_ENV`) cookie hardening, and the session-cookie attributes.
+
+---
+
 ## [2.0.1] - 2026-09-04
 
 ### Security

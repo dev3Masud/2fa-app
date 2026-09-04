@@ -73,10 +73,20 @@ export function verifySession(token) {
 // ── CSRF protection: Double-Submit Cookie pattern ────────────────────────────
 // On login we set a CSRF cookie (readable by JS) and embed the same value in
 // the session. The browser then must echo the value in a header on every
-// state-changing request. Cookies are SameSite=Strict so cross-site requests
-// won't include them, and the header is not auto-sent, blocking CSRF.
+// state-changing request. The session cookie is HttpOnly + SameSite=Strict
+// (server-to-browser only). The CSRF cookie is intentionally NOT HttpOnly
+// (JS must read it) and uses SameSite=Lax so that it survives Vercel preview
+// redirects, embedded iframe scenarios, and Safari ITP drops. Real CSRF
+// protection still comes from the fact that the header is not auto-sent on
+// cross-site requests; the cookie being Lax doesn't weaken this.
 function generateCsrfToken() {
   return crypto.randomBytes(24).toString('base64url')
+}
+
+// True on Vercel deployments too — Vercel does not set NODE_ENV=production,
+// only VERCEL=1, so we treat VERCEL as production for cookie purposes.
+function isProdLike() {
+  return process.env.NODE_ENV === 'production' || !!process.env.VERCEL
 }
 
 export function buildCookie(token) {
@@ -87,7 +97,7 @@ export function buildCookie(token) {
     'SameSite=Strict',
     `Max-Age=${SESSION_TTL_SECONDS}`,
   ]
-  if (process.env.NODE_ENV === 'production') {
+  if (isProdLike()) {
     parts.push('Secure')
   }
   return parts.join('; ')
@@ -98,10 +108,10 @@ export function buildCsrfCookie() {
   const parts = [
     `${CSRF_COOKIE_NAME}=${token}`,
     'Path=/',
-    'SameSite=Strict',
+    'SameSite=Lax',
     `Max-Age=${SESSION_TTL_SECONDS}`,
   ]
-  if (process.env.NODE_ENV === 'production') {
+  if (isProdLike()) {
     parts.push('Secure')
   }
   return { token, header: token, cookie: parts.join('; ') }
@@ -115,16 +125,16 @@ export function buildClearCookie() {
     'SameSite=Strict',
     'Max-Age=0',
   ]
-  if (process.env.NODE_ENV === 'production') {
+  if (isProdLike()) {
     parts.push('Secure')
   }
   const csrfParts = [
     `${CSRF_COOKIE_NAME}=`,
     'Path=/',
-    'SameSite=Strict',
+    'SameSite=Lax',
     'Max-Age=0',
   ]
-  if (process.env.NODE_ENV === 'production') {
+  if (isProdLike()) {
     csrfParts.push('Secure')
   }
   return [parts.join('; '), csrfParts.join('; ')]

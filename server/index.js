@@ -13,6 +13,7 @@ import totpRouter from './routes/totp.js'
 import qrParseRouter from './routes/qr-parse.js'
 import modeRouter from './routes/mode.js'
 import groupsRouter from './routes/groups.js'
+import csrfRouter from './routes/csrf.js'
 import { requireSession } from './lib/auth.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -128,6 +129,9 @@ app.use('/api/login', loginLimiter, loginRouter)
 
 // ── Authenticated routes: session + CSRF enforced ────────────────────────────
 app.use('/api', requireSession)
+// GET /api/csrf issues a fresh CSRF token — must NOT itself require a
+// matching CSRF header (chicken-and-egg), but does require a valid session.
+app.use('/api/csrf', csrfRouter)
 app.use('/api/logout', logoutRouter)
 app.use('/api/accounts', writeLimiter, accountsRouter)
 app.use('/api/totp', totpRouter)

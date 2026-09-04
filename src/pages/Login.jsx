@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { api } from '../lib/api.js'
+import { api, primeCsrfCache } from '../lib/api.js'
 
 export default function Login() {
   const [username, setUsername] = useState('')
@@ -34,7 +34,15 @@ export default function Login() {
     setErr('')
     setLoading(true)
     try {
-      await api.login(username, password)
+      const res = await api.login(username, password)
+      // Prime the in-memory CSRF cache from the value the login response
+      // returned in its body. This protects against the rare case where the
+      // browser drops the JS-readable 2fa_csrf cookie right after login
+      // (some privacy settings + SameSite=Strict + Vercel redirects can
+      // cause this). Using the body value lets the very next write succeed.
+      if (res && typeof res.csrfToken === 'string') {
+        primeCsrfCache(res.csrfToken)
+      }
       window.location.reload()
     } catch (e) {
       setErr(e.message)

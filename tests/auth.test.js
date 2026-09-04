@@ -6,10 +6,13 @@ import assert from 'node:assert/strict'
 // correctly and the requireSession middleware rejects bad requests.
 
 const originalSecret = process.env.SESSION_SECRET
+const originalNodeEnv = process.env.NODE_ENV
+const originalVercel = process.env.VERCEL
 process.env.SESSION_SECRET = 'a'.repeat(64)
 process.env.NODE_ENV = 'production'
 
-const { requireSession, buildCsrfCookie } = await import('../server/lib/auth.js')
+const { requireSession, buildCsrfCookie, buildCookie, buildClearCookie } =
+  await import('../server/lib/auth.js')
 
 function makeRes() {
   const res = {
@@ -82,7 +85,49 @@ describe('requireSession middleware', () => {
   })
 })
 
+describe('CSRF cookie helpers', () => {
+  test('CSRF cookie uses SameSite=Lax and Secure in production', () => {
+    const { cookie } = buildCsrfCookie()
+    assert.ok(cookie.includes('SameSite=Lax'), `expected SameSite=Lax in: ${cookie}`)
+    assert.ok(cookie.includes('Secure'), `expected Secure in: ${cookie}`)
+    assert.ok(!cookie.includes('HttpOnly'), `CSRF cookie must NOT be HttpOnly`)
+  })
+
+  test('CSRF cookie uses SameSite=Lax and Secure when VERCEL=1 (no NODE_ENV)', () => {
+    const saved = process.env.NODE_ENV
+    delete process.env.NODE_ENV
+    process.env.VERCEL = '1'
+    return import('../server/lib/auth.js?vercel=1').then((mod) => {
+      const { cookie } = mod.buildCsrfCookie()
+      assert.ok(cookie.includes('SameSite=Lax'), `expected SameSite=Lax in: ${cookie}`)
+      assert.ok(cookie.includes('Secure'), `expected Secure in: ${cookie}`)
+      if (saved === undefined) delete process.env.NODE_ENV
+      else process.env.NODE_ENV = saved
+      delete process.env.VERCEL
+    })
+  })
+
+  test('Session cookie is HttpOnly + SameSite=Strict + Secure', () => {
+    const cookie = buildCookie('dummy')
+    assert.ok(cookie.includes('HttpOnly'))
+    assert.ok(cookie.includes('SameSite=Strict'))
+    assert.ok(cookie.includes('Secure'))
+  })
+
+  test('Clear cookies return both session and CSRF cookie strings', () => {
+    const cleared = buildClearCookie()
+    assert.ok(Array.isArray(cleared))
+    assert.equal(cleared.length, 2)
+    assert.ok(cleared[0].startsWith('2fa_session='))
+    assert.ok(cleared[1].startsWith('2fa_csrf='))
+  })
+})
+
 after(() => {
   if (originalSecret === undefined) delete process.env.SESSION_SECRET
   else process.env.SESSION_SECRET = originalSecret
+  if (originalNodeEnv === undefined) delete process.env.NODE_ENV
+  else process.env.NODE_ENV = originalNodeEnv
+  if (originalVercel === undefined) delete process.env.VERCEL
+  else process.env.VERCEL = originalVercel
 })
