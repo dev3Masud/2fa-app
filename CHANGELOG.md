@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 * **Broken up/down reorder arrows.** The account and group reorder buttons used hand-written SVG polylines with invalid point lists (e.g. `18 15 2 15 10 9`), rendering as tiny broken marks. They are now proper `faChevronUp` / `faChevronDown` Font Awesome icons at matching sizes.
+* **Group up/down arrows were invisible.** The group-level reorder buttons were absolutely positioned at `left: -36px`, off-canvas outside the centered column, so they never appeared even in edit mode. They now live in the group header (up/chevron-down pair with a divider, before the collapse button), visible in **Edit** mode for custom groups with correct disabled states at the top/bottom of the list. The dead floating-controls CSS was removed.
 
 ### Added
 * New runtime dependencies: `@fortawesome/fontawesome-svg-core`, `@fortawesome/react-fontawesome`, `@fortawesome/free-solid-svg-icons`, `@fortawesome/free-regular-svg-icons`, `@fortawesome/free-brands-svg-icons`.

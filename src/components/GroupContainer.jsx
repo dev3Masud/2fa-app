@@ -94,6 +94,31 @@ export default function GroupContainer({
             </button>
           )}
 
+          {/* Move group up/down (edit mode only, custom groups) */}
+          {showGroupArrows && (
+            <>
+              <button
+                className="group-action-btn"
+                disabled={!canMoveGroupUp}
+                onClick={() => onMoveGroup && onMoveGroup(group, -1)}
+                title="Move group up"
+                aria-label="Move group up"
+              >
+                <FontAwesomeIcon icon={faChevronUp} style={{ fontSize: 14 }} />
+              </button>
+              <button
+                className="group-action-btn"
+                disabled={!canMoveGroupDown}
+                onClick={() => onMoveGroup && onMoveGroup(group, 1)}
+                title="Move group down"
+                aria-label="Move group down"
+              >
+                <FontAwesomeIcon icon={faChevronDown} style={{ fontSize: 14 }} />
+              </button>
+              <span className="group-header-divider" aria-hidden="true" />
+            </>
+          )}
+
           {/* Collapse/Expand indicator */}
           <button
             className="group-action-btn"
@@ -168,31 +193,6 @@ export default function GroupContainer({
               )
             })
           )}
-        </div>
-      )}
-
-      {/* Group-level reorder arrows (rendered outside the header so they sit
-          vertically centered on the group block) */}
-      {showGroupArrows && isCustomGroup && (
-        <div className="group-reorder-controls" aria-label="Reorder group">
-          <button
-            className="group-reorder-btn"
-            disabled={!canMoveGroupUp}
-            onClick={() => onMoveGroup && onMoveGroup(group, -1)}
-            title="Move group up"
-            aria-label="Move group up"
-          >
-            <FontAwesomeIcon icon={faChevronUp} style={{ fontSize: 14 }} />
-          </button>
-          <button
-            className="group-reorder-btn"
-            disabled={!canMoveGroupDown}
-            onClick={() => onMoveGroup && onMoveGroup(group, 1)}
-            title="Move group down"
-            aria-label="Move group down"
-          >
-            <FontAwesomeIcon icon={faChevronDown} style={{ fontSize: 14 }} />
-          </button>
         </div>
       )}
 
