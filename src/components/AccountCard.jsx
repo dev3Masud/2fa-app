@@ -11,18 +11,19 @@ export default function AccountCard({
   remaining = 30,
   period = 30,
   masked = false,
+  editMode = false,
   onDelete,
   onUpdate,
 }) {
   const [copied, setCopied] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [inlineConfirmDelete, setInlineConfirmDelete] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [hotpCounter, setHotpCounter] = useState(account.counter ?? 0)
   const [manualCode, setManualCode] = useState(null)
   const [loadingCode, setLoadingCode] = useState(false)
 
-  // Use live code if provided, otherwise manual/local code
   const code = manualCode || liveCode
 
   async function copyCode(e) {
@@ -31,7 +32,7 @@ export default function AccountCard({
     try {
       await navigator.clipboard.writeText(code)
       setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      setTimeout(() => setCopied(false), 1600)
     } catch (err) {
       console.error('Clipboard copy failed', err)
     }
@@ -62,10 +63,10 @@ export default function AccountCard({
       alert(e.message || 'Failed to delete account')
     } finally {
       setDeleting(false)
+      setInlineConfirmDelete(false)
     }
   }
 
-  // Format code into grouped segments, e.g. "215 568"
   function formatCode(c) {
     if (!c) return '••••••'
     if (masked) return '••••••'
@@ -144,12 +145,13 @@ export default function AccountCard({
             </div>
           )}
 
-          {/* Actions: Copy icon button, Edit button, Delete button */}
+          {/* Actions: copy, edit, and (edit-mode-only) inline delete */}
           <div className="card-actions">
             <button
               className={`btn-icon ${copied ? 'success' : ''}`}
               onClick={copyCode}
               title={copied ? 'Copied!' : 'Copy Code'}
+              aria-label="Copy code"
             >
               {copied ? (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -163,38 +165,77 @@ export default function AccountCard({
               )}
             </button>
 
-            <button
-              className="btn-icon"
-              onClick={(e) => {
-                e.stopPropagation()
-                setShowEditModal(true)
-              }}
-              title="Edit Account"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-            </button>
+            {!editMode && (
+              <button
+                className="btn-icon"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowEditModal(true)
+                }}
+                title="Edit Account"
+                aria-label="Edit account"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </button>
+            )}
 
-            <button
-              className="btn-icon btn-danger"
-              onClick={(e) => {
-                e.stopPropagation()
-                setShowDeleteModal(true)
-              }}
-              title="Delete Account"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
+            {/* Delete button: fades + slides in only when editMode is on.
+                Two-step inline confirm: first click reveals Confirm/Cancel,
+                second click deletes. Auto-collapses if the user clicks away. */}
+            {editMode && (
+              <div
+                className={`delete-cluster ${inlineConfirmDelete ? 'confirming' : ''}`}
+                onMouseLeave={() => setInlineConfirmDelete(false)}
+              >
+                {!inlineConfirmDelete ? (
+                  <button
+                    className="btn-icon btn-danger"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setInlineConfirmDelete(true)
+                    }}
+                    title="Delete account"
+                    aria-label="Delete account"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                ) : (
+                  <div className="delete-confirm">
+                    <button
+                      className="btn btn-sm btn-danger-solid"
+                      disabled={deleting}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        confirmDelete()
+                      }}
+                    >
+                      {deleting ? '…' : 'Confirm'}
+                    </button>
+                    <button
+                      className="btn btn-sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setInlineConfirmDelete(false)
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* In-App Delete Confirmation Modal */}
+      {/* Two-step modal (kept as a power-user fallback; the inline flow above
+          is the default in edit mode). */}
       <DeleteModal
         isOpen={showDeleteModal}
         account={account}

@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 * **Reorder UI replaced drag-and-drop with explicit up/down arrows.** Click the new **Edit** button in the top bar to enter position-edit mode — every group header shows up/down arrows (disabled at the top/bottom of the list) and every account row reveals up/down arrows on its right edge. Click **✓ Done** to exit. Reorders are still persisted to the database via the same `/api/accounts/reorder` and `/api/groups/reorder` endpoints and still mirror to localStorage.
 * **Group header no longer overlaps the first account row.** The redundant `border-bottom` on `.group-header` was removed so the single hairline separator provided by `.group-items` (background + 1px gap) cleanly separates the header from the first row.
+* **Edit-mode-only inline delete button on every account row.** When **Edit** is on, each row reveals a destructive `×` button next to the copy button (the regular pencil/edit button is hidden in edit mode to reduce clutter). First click shows an inline `Confirm / Cancel` cluster that springs in; second click on Confirm deletes via the existing 2-step SUDO DELETE flow. The cluster auto-collapses if the user moves the cursor away.
+* **Modernized layout + smooth animations across the dashboard.**
+  * Rounded corners bumped from `--radius-lg` to 18px on group containers and 10px on action buttons.
+  * Generous padding (16px/20px on account rows, 14px/20px on group headers).
+  * All interactive elements use a new `--motion-fast` (140ms) / `--motion-med` (240ms) / `--motion-slow` (380ms) timing system with a unified `--ease-out` / `--ease-spring` cubic-bezier. Buttons lift 1px on hover, scale down 0.94–0.97 on press.
+  * Reorder arrows and per-row reorder bars slide in with `opacity` + `width` + `transform` transitions; the delete-confirm cluster uses a spring easing for a satisfying pop.
+  * The copy-flash animation is now a 700ms three-stop keyframe that pulses background + a soft outward `box-shadow` ring.
+  * Edit-mode group containers gain a faint indigo glow so the user can see at a glance which group is in edit mode.
 
 ### Removed
 * Native HTML5 drag-and-drop reorder hook (`useDragReorder.js`) and all related CSS (drag handles, drop indicators, dimmed-dragging state).

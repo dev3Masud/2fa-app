@@ -221,26 +221,34 @@ html, body, #root {
   background: var(--panel);
   border: 1px solid var(--border);
   color: var(--text-muted);
-  padding: 6px 14px;
+  padding: 7px 14px;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s ease;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
 }
 
 .group-pill:hover {
   background: var(--panel-2);
   border-color: var(--border-hover);
   color: var(--text);
+  transform: translateY(-1px);
+}
+.group-pill:active {
+  transform: translateY(0) scale(0.97);
 }
 
 .group-pill.active {
   background: var(--accent);
   border-color: var(--accent);
   color: #ffffff;
-  box-shadow: 0 2px 10px var(--accent-glow);
+  box-shadow: 0 4px 18px var(--accent-glow);
 }
 
 .group-pill-count {
@@ -260,52 +268,77 @@ html, body, #root {
 }
 
 /* ── Group Container (Red Box in Mockup) ────────────────── */
+:root {
+  --motion-fast: 140ms;
+  --motion-med: 240ms;
+  --motion-slow: 380ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 .group-container {
   background: rgba(17, 24, 39, 0.7);
   backdrop-filter: blur(12px);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  margin-bottom: 18px;
+  border-radius: 18px;
+  margin-bottom: 20px;
   overflow: hidden;
   box-shadow: var(--shadow-sm);
-  transition: border-color 0.2s;
+  transition: border-color var(--motion-med) var(--ease-out),
+              transform var(--motion-med) var(--ease-out),
+              box-shadow var(--motion-med) var(--ease-out);
 }
-
 .group-container:hover {
   border-color: var(--border-hover);
+}
+.group-wrapper.edit-mode .group-container {
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.18),
+              var(--shadow-sm);
+}
+
+.group-wrapper {
+  position: relative;
+  margin-bottom: 20px;
+  transition: transform var(--motion-med) var(--ease-out);
 }
 
 .group-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  background: rgba(26, 35, 55, 0.5);
+  padding: 14px 20px;
+  background: rgba(26, 35, 55, 0.55);
   cursor: pointer;
   user-select: none;
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+.group-header:hover {
+  background: rgba(31, 41, 60, 0.65);
 }
 
 .group-header-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .group-title {
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text);
 }
 
 .group-count-badge {
   font-size: 11px;
-  background: var(--panel);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text-muted);
-  padding: 1px 7px;
+  padding: 2px 9px;
   border-radius: 999px;
   border: 1px solid var(--border);
+  transition: background-color var(--motion-fast) var(--ease-out);
 }
 
 .group-header-right {
@@ -318,18 +351,24 @@ html, body, #root {
   background: transparent;
   border: none;
   color: var(--muted);
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
 }
 .group-action-btn:hover {
-  background: var(--panel-2);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text);
+  transform: translateY(-1px);
+}
+.group-action-btn:active {
+  transform: translateY(0) scale(0.96);
 }
 .group-action-btn.btn-danger:hover {
   color: var(--danger);
@@ -344,125 +383,158 @@ html, body, #root {
 }
 
 .group-empty-hint {
-  padding: 24px;
+  padding: 28px;
   text-align: center;
   color: var(--muted);
   font-size: 13px;
   background: var(--panel);
 }
 
-/* ── Drag-and-drop reorder UI ────────────────────────────── */
+/* ── Per-row reorder controls (edit mode only) ─────────────── */
 .account-row {
   position: relative;
   display: flex;
   align-items: stretch;
   background: var(--border);
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+.account-row:hover {
+  background: var(--border-hover);
 }
 .account-row > .account-card {
   flex: 1 1 auto;
   min-width: 0;
 }
 
-/* Reorder controls for a single row. Visible on hover, or always in edit mode. */
+/* Smoothly slide the per-row reorder bar in from the right when it appears. */
 .account-row .reorder-controls {
-  flex: 0 0 auto;
-  display: none;
+  flex: 0 0 44px;
+  display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   gap: 4px;
-  padding: 0 10px;
-  background: var(--panel);
+  padding: 0 6px;
+  background: rgba(255, 255, 255, 0.02);
   border-left: 1px solid var(--border);
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  transform: translateX(8px);
+  transition: opacity var(--motion-med) var(--ease-out),
+              width var(--motion-med) var(--ease-out),
+              transform var(--motion-med) var(--ease-out);
 }
-.account-row:hover .reorder-controls,
 .group-wrapper.edit-mode .account-row .reorder-controls {
-  display: flex;
+  opacity: 1;
+  width: 44px;
+  transform: translateX(0);
 }
 .reorder-btn {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--muted);
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 22px;
   border-radius: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
 }
 .reorder-btn:hover:not(:disabled) {
   background: var(--panel-2);
   color: var(--text);
   border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+.reorder-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.94);
 }
 .reorder-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.25;
   cursor: not-allowed;
 }
 
-/* Group-level reorder arrows, rendered as a small vertical bar on the left side
-  of the group container, only in edit mode. */
-.group-wrapper {
-  position: relative;
-  margin-bottom: 18px;
-}
+/* ── Group-level reorder arrows (edit mode only) ───────────── */
 .group-reorder-controls {
   position: absolute;
-  top: 14px;
-  left: -34px;
-  display: none;
+  top: 16px;
+  left: -36px;
+  display: flex;
   flex-direction: column;
   gap: 4px;
   z-index: 4;
+  opacity: 0;
+  transform: translateX(6px);
+  transition: opacity var(--motion-med) var(--ease-out),
+              transform var(--motion-med) var(--ease-out);
+  pointer-events: none;
 }
 .group-wrapper.edit-mode .group-reorder-controls {
-  display: flex;
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
 }
 .group-reorder-btn {
   background: var(--panel-2);
   border: 1px solid var(--border);
   color: var(--muted);
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
 }
 .group-reorder-btn:hover:not(:disabled) {
   background: var(--panel);
   color: var(--text);
   border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+.group-reorder-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.94);
 }
 .group-reorder-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.25;
   cursor: not-allowed;
 }
 
 @media (max-width: 640px) {
   .group-reorder-controls {
     left: auto;
-    right: 8px;
-    top: 8px;
+    right: 12px;
+    top: 10px;
     flex-direction: row;
   }
   .account-row .reorder-controls {
-    padding: 0 6px;
+    padding: 0 4px;
+    flex: 0 0 36px;
+  }
+  .group-wrapper.edit-mode .account-row .reorder-controls {
+    width: 36px;
   }
 }
 
 .account-card {
   background: var(--panel);
-  padding: 14px 18px;
+  padding: 16px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  transition: all 0.2s ease;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
   position: relative;
 }
 
@@ -471,12 +543,77 @@ html, body, #root {
 }
 
 .account-card.copied-flash {
-  animation: flashGlow 0.4s ease;
+  animation: flashGlow 700ms var(--ease-out);
 }
 
 @keyframes flashGlow {
-  0% { background: rgba(16, 185, 129, 0.2); }
-  100% { background: var(--panel); }
+  0% {
+    background: rgba(16, 185, 129, 0.28);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.25);
+  }
+  60% {
+    background: rgba(16, 185, 129, 0.18);
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.04);
+  }
+  100% {
+    background: var(--panel);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+/* ── Delete cluster (edit mode only) ──────────────────────── */
+.delete-cluster {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  animation: fadeSlideIn var(--motion-med) var(--ease-out);
+}
+@keyframes fadeSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(8px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+.delete-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  animation: confirmPop var(--motion-med) var(--ease-spring);
+}
+@keyframes confirmPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.btn-danger-solid {
+  background: var(--danger);
+  border: 1px solid var(--danger);
+  color: #fff;
+  font-weight: 600;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
+}
+.btn-danger-solid:hover:not(:disabled) {
+  background: #dc2626;
+  border-color: #dc2626;
+  transform: translateY(-1px);
+}
+.btn-danger-solid:active:not(:disabled) {
+  transform: translateY(0) scale(0.96);
+}
+.btn-danger-solid:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .account-left {
@@ -632,27 +769,34 @@ html, body, #root {
 .card-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .btn-icon {
   background: transparent;
   border: 1px solid transparent;
   color: var(--muted);
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
 }
 
 .btn-icon:hover {
-  background: var(--panel-3);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text);
   border-color: var(--border);
+  transform: translateY(-1px);
+}
+.btn-icon:active {
+  transform: translateY(0) scale(0.94);
 }
 
 .btn-icon.success {
@@ -664,7 +808,7 @@ html, body, #root {
 .btn-icon.btn-danger:hover {
   color: var(--danger);
   background: var(--danger-bg);
-  border-color: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.25);
 }
 
 .btn-icon.active {
@@ -682,7 +826,11 @@ html, body, #root {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out),
+              color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out),
+              box-shadow var(--motion-fast) var(--ease-out);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -692,6 +840,10 @@ html, body, #root {
 .btn:hover {
   background: var(--panel-3);
   border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+.btn:active {
+  transform: translateY(0) scale(0.97);
 }
 .btn:disabled {
   opacity: 0.5;
@@ -707,6 +859,7 @@ html, body, #root {
 .btn-primary:hover {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
+  box-shadow: 0 4px 18px var(--accent-glow);
 }
 
 .btn-danger-solid {

@@ -702,6 +702,7 @@ export default function Dashboard() {
                   codes={codes}
                   tickerRemaining={tickerRemaining}
                   masked={masked}
+                  editMode={editMode}
                   onDeleteAccount={handleAccountDeleted}
                   onUpdateAccount={handleAccountUpdated}
                   onRenameGroup={handleRenameGroup}

@@ -10,6 +10,7 @@ export default function GroupContainer({
   codes = {},
   tickerRemaining = {},
   masked = false,
+  editMode = false,
   onDeleteAccount,
   onUpdateAccount,
   onRenameGroup,
@@ -27,7 +28,7 @@ export default function GroupContainer({
 
   const isCustomGroup = Boolean(group.id && group.id !== 'ungrouped' && group.id !== 'all')
   const reorderable =
-    Boolean(onMoveAccount) && accounts.length > 0 && !collapsed
+    Boolean(onMoveAccount) && accounts.length > 0 && !collapsed && editMode
 
   function move(idx, dir) {
     const target = idx + dir
@@ -145,6 +146,7 @@ export default function GroupContainer({
                     remaining={rem}
                     period={acc.period}
                     masked={masked}
+                    editMode={editMode}
                     onDelete={onDeleteAccount}
                     onUpdate={onUpdateAccount}
                   />
