@@ -9,6 +9,7 @@ import {
   faArrowRight,
   faArrowLeft,
   faXmark,
+  faCopy,
 } from '@fortawesome/free-solid-svg-icons'
 import { ServiceLogo } from '../lib/icons.jsx'
 
@@ -34,6 +35,7 @@ export default function DeleteModal({
   const CONFIRM_PHRASE = CONFIRM_PHRASES[variant] || CONFIRM_PHRASES.account
   const [step, setStep] = useState(1)
   const [confirmText, setConfirmText] = useState('')
+  const [copiedPhrase, setCopiedPhrase] = useState(false)
   const inputRef = useRef(null)
 
   // Reset whenever modal opens
@@ -41,6 +43,7 @@ export default function DeleteModal({
     if (isOpen) {
       setStep(1)
       setConfirmText('')
+      setCopiedPhrase(false)
     }
   }, [isOpen])
 
@@ -66,6 +69,17 @@ export default function DeleteModal({
     }
     if (step === 2 && isConfirmed && !loading) {
       onConfirm()
+    }
+  }
+
+  // Clicking the red phrase chip copies it so the user can paste it below
+  async function copyPhrase() {
+    try {
+      await navigator.clipboard.writeText(CONFIRM_PHRASE)
+      setCopiedPhrase(true)
+      setTimeout(() => setCopiedPhrase(false), 1600)
+    } catch (err) {
+      console.error('Phrase copy failed', err)
     }
   }
 
@@ -221,28 +235,28 @@ export default function DeleteModal({
         {step === 2 && (
           <form onSubmit={handleSubmit}>
             <h2 style={{ marginBottom: 6, fontSize: 19, color: '#ef4444' }}>Final Confirmation</h2>
-            <p style={{ color: 'var(--muted)', fontSize: 13, margin: '0 0 16px', lineHeight: 1.55 }}>
+            <p style={{ color: 'var(--muted)', fontSize: 13, margin: '0 0 12px', lineHeight: 1.55 }}>
               To permanently delete{' '}
-              <strong style={{ color: 'var(--text)' }}>
+              <strong style={{ color: 'var(--text)', overflowWrap: 'anywhere' }}>
                 {accountName || (isGroupDelete ? 'this group' : 'this account')}
               </strong>
-              , type{' '}
-              <code
-                style={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                  background: 'rgba(239, 68, 68, 0.12)',
-                  color: '#ef4444',
-                  padding: '2px 7px',
-                  borderRadius: 4,
-                  fontWeight: 700,
-                  letterSpacing: '0.05em',
-                  border: '1px solid rgba(239, 68, 68, 0.25)',
-                }}
-              >
-                {CONFIRM_PHRASE}
-              </code>{' '}
-              in the box below:
+              , click the phrase to copy it, then type it in the box below:
             </p>
+
+            {/* Click-to-copy phrase chip — single line, never wraps mid-phrase */}
+            <button
+              type="button"
+              className={`delete-phrase-chip ${copiedPhrase ? 'copied' : ''}`}
+              onClick={copyPhrase}
+              title="Click to copy phrase"
+            >
+              <code>{CONFIRM_PHRASE}</code>
+              <FontAwesomeIcon
+                icon={copiedPhrase ? faCheck : faCopy}
+                style={{ fontSize: 12 }}
+              />
+              <span>{copiedPhrase ? 'Copied!' : 'Copy'}</span>
+            </button>
 
             {/* Beautiful Custom Input Field with Left SVG Icon */}
             <div className="delete-input-wrap">

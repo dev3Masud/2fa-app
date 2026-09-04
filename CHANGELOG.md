@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **Typed delete phrases are now target-specific.** Step 2 of group deletion requires typing `sudo rm group`; step 2 of 2FA account deletion requires `sudo rm 2fa` (comparison is case-insensitive). The old shared `SUDO DELETE` phrase is gone.
 * **Account deletion is a true 2-step flow again.** The inline `Confirm` button on an account row now opens the 2-step delete modal (warning → type `sudo rm 2fa`) instead of deleting immediately.
 * **Row delete opens the popup directly.** Clicking the `×` delete button on an account row now opens the 2-step delete popup immediately — the intermediate inline Confirm/Cancel cluster on the row (and its CSS) was removed.
+* **Fixed broken step-2 delete layout.** The phrase chip no longer sits inline in the sentence (it wrapped mid-phrase and pushed "below:" onto its own line). The phrase is now a standalone single-line chip under the instruction text, and long account names wrap safely with `overflow-wrap: anywhere`.
+* **Click-to-copy delete phrase.** Clicking the red phrase chip copies `sudo rm 2fa` / `sudo rm group` to the clipboard with a green "Copied!" confirmation state, so the user can paste it into the box instead of typing.
 
 ---
 

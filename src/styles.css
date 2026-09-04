@@ -1083,6 +1083,52 @@ html, body, #root {
   margin: 14px 0 6px;
 }
 
+/* ── Click-to-copy phrase chip (delete step 2) ───────────── */
+.delete-phrase-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  cursor: pointer;
+  margin: 0 auto 4px;
+  transition: background-color var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out),
+              border-color var(--motion-fast) var(--ease-out);
+}
+.delete-phrase-chip code {
+  font-family: inherit;
+  font-weight: inherit;
+}
+.delete-phrase-chip:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.45);
+  transform: translateY(-1px);
+}
+.delete-phrase-chip:active {
+  transform: translateY(0) scale(0.97);
+}
+.delete-phrase-chip span {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+}
+.delete-phrase-chip.copied {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #10b981;
+}
+
 .delete-input-icon {
   position: absolute;
   left: 14px;
