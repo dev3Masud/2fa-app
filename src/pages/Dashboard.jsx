@@ -1,4 +1,16 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import {
+  faShieldHalved,
+  faEye,
+  faEyeSlash,
+  faMagnifyingGlass,
+  faPlus,
+  faCheck,
+  faPen,
+  faLock,
+  faXmark,
+} from '@fortawesome/free-solid-svg-icons'
 import { api } from '../lib/api.js'
 import AddAccount from '../components/AddAccount.jsx'
 import GroupContainer from '../components/GroupContainer.jsx'
@@ -507,9 +519,7 @@ export default function Dashboard() {
       <div className="header">
         <div className="logo">
           <div className="vault-brand-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
+            <FontAwesomeIcon icon={faShieldHalved} style={{ fontSize: 20 }} />
           </div>
           <h1>2FA Vault</h1>
           <span className="badge">{accounts.length}</span>
@@ -523,15 +533,9 @@ export default function Dashboard() {
             title={masked ? 'Reveal Codes' : 'Mask Codes (Privacy Mode)'}
           >
             {masked ? (
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
-                <line x1="1" y1="1" x2="23" y2="23" />
-              </svg>
+              <FontAwesomeIcon icon={faEyeSlash} style={{ fontSize: 17 }} />
             ) : (
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
+              <FontAwesomeIcon icon={faEye} style={{ fontSize: 17 }} />
             )}
           </button>
 
@@ -541,7 +545,7 @@ export default function Dashboard() {
             onClick={() => setShowNewGroupModal(true)}
             title="Create a new custom group"
           >
-            + Group
+            <FontAwesomeIcon icon={faPlus} style={{ fontSize: 12 }} /> Group
           </button>
 
           {/* Edit Position Toggle — reveals up/down arrows on every row and group */}
@@ -550,7 +554,11 @@ export default function Dashboard() {
             onClick={() => setEditMode((v) => !v)}
             title={editMode ? 'Done editing positions' : 'Edit positions of groups and accounts'}
           >
-            {editMode ? '✓ Done' : 'Edit'}
+            {editMode ? (
+              <><FontAwesomeIcon icon={faCheck} style={{ fontSize: 12 }} /> Done</>
+            ) : (
+              <><FontAwesomeIcon icon={faPen} style={{ fontSize: 12 }} /> Edit</>
+            )}
           </button>
 
           {/* Add Account Button */}
@@ -561,12 +569,12 @@ export default function Dashboard() {
               setShowAdd(true)
             }}
           >
-            + Add
+            <FontAwesomeIcon icon={faPlus} style={{ fontSize: 12 }} /> Add
           </button>
 
           {/* Lock Vault Button */}
           <button className="btn" onClick={logout} title="Lock Vault and sign out">
-            Lock
+            <FontAwesomeIcon icon={faLock} style={{ fontSize: 12 }} /> Lock
           </button>
         </div>
       </div>
@@ -574,10 +582,7 @@ export default function Dashboard() {
       {/* ── Search Bar matching user mockup ───────────────────────── */}
       <div className="search-bar-container">
         <div className="search-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
+          <FontAwesomeIcon icon={faMagnifyingGlass} style={{ fontSize: 16 }} />
         </div>
         <input
           ref={searchInputRef}
@@ -593,7 +598,7 @@ export default function Dashboard() {
             onClick={() => setSearchQuery('')}
             title="Clear search"
           >
-            ✕
+            <FontAwesomeIcon icon={faXmark} style={{ fontSize: 14 }} />
           </button>
         )}
         <span className="search-kbd-shortcut">/</span>
@@ -638,7 +643,7 @@ export default function Dashboard() {
           onClick={() => setShowNewGroupModal(true)}
           title="Create New Group"
         >
-          + New Group
+          <FontAwesomeIcon icon={faPlus} style={{ fontSize: 11 }} /> New Group
         </button>
       </div>
 
@@ -653,10 +658,7 @@ export default function Dashboard() {
       ) : accounts.length === 0 ? (
         <div className="card empty-state-card">
           <div className="empty-state-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0110 0v4" />
-            </svg>
+            <FontAwesomeIcon icon={faLock} style={{ fontSize: 48 }} />
           </div>
           <h3 style={{ margin: '0 0 6px', fontSize: 18 }}>Your Vault is Empty</h3>
           <p style={{ color: 'var(--muted)', fontSize: 14, margin: '0 0 18px', maxWidth: 360 }}>
@@ -664,10 +666,10 @@ export default function Dashboard() {
           </p>
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
-              + Add First Account
+              <FontAwesomeIcon icon={faPlus} style={{ fontSize: 12 }} /> Add First Account
             </button>
             <button className="btn" onClick={() => setShowNewGroupModal(true)}>
-              + Create a Group
+              <FontAwesomeIcon icon={faPlus} style={{ fontSize: 12 }} /> Create a Group
             </button>
           </div>
         </div>

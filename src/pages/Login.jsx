@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faShieldHalved, faLock, faUnlock } from '@fortawesome/free-solid-svg-icons'
 import { api, primeCsrfCache } from '../lib/api.js'
 
 export default function Login() {
@@ -62,7 +64,12 @@ export default function Login() {
   return (
     <div className="login-page">
       <div className="card login-card">
-        <h1>2FA Vault</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+          <div className="vault-brand-icon">
+            <FontAwesomeIcon icon={faShieldHalved} style={{ fontSize: 20 }} />
+          </div>
+          <h1 style={{ margin: 0 }}>2FA Vault</h1>
+        </div>
         <p className="info" style={{ marginTop: 0 }}>
           {hint}
         </p>
@@ -92,7 +99,7 @@ export default function Login() {
           </div>
           {err && <div className="error">{err}</div>}
           <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%' }}>
-            {loading ? 'Unlocking…' : 'Unlock'}
+            <FontAwesomeIcon icon={loading ? faLock : faUnlock} style={{ fontSize: 13 }} /> {loading ? 'Unlocking…' : 'Unlock'}
           </button>
         </form>
         <p className="info">

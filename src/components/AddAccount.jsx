@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faQrcode, faPlus } from '@fortawesome/free-solid-svg-icons'
 import jsQR from 'jsqr'
 import { api } from '../lib/api.js'
 import { BRAND_ICONS, ServiceLogo, detectService } from '../lib/icons.jsx'
@@ -230,12 +232,7 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
               }}
             >
               <div style={{ marginBottom: 8 }}>
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="7" />
-                  <rect x="14" y="3" width="7" height="7" />
-                  <rect x="14" y="14" width="7" height="7" />
-                  <rect x="3" y="14" width="7" height="7" />
-                </svg>
+                <FontAwesomeIcon icon={faQrcode} style={{ fontSize: 36, color: 'var(--muted)' }} />
               </div>
               <div style={{ fontWeight: 500, color: 'var(--text)', marginBottom: 4 }}>
                 {loading ? 'Scanning QR code…' : 'Drop QR screenshot here or click to browse'}
@@ -355,7 +352,7 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
                     style={{ fontSize: 12 }}
                     onClick={() => setShowCreateGroupModal(true)}
                   >
-                    + Create New Group
+                    <FontAwesomeIcon icon={faPlus} style={{ fontSize: 11 }} /> Create New Group
                   </button>
                 </div>
                 <select

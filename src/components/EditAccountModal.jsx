@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faPlus } from '@fortawesome/free-solid-svg-icons'
 import { BRAND_ICONS, ServiceLogo, detectService } from '../lib/icons.jsx'
 import {
   getCustomGroups,
@@ -162,7 +164,7 @@ export default function EditAccountModal({
                   style={{ fontSize: 12, padding: 0 }}
                   onClick={() => setShowCreateGroupModal(true)}
                 >
-                  + Create New Group
+                  <FontAwesomeIcon icon={faPlus} style={{ fontSize: 11 }} /> Create New Group
                 </button>
               </div>
               <select

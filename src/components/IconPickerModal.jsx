@@ -1,5 +1,7 @@
 import { useState, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faXmark, faMagnifyingGlass, faImage } from '@fortawesome/free-solid-svg-icons'
 import { BRAND_ICONS, ICON_CATEGORIES, ServiceLogo } from '../lib/icons.jsx'
 
 export default function IconPickerModal({
@@ -58,7 +60,7 @@ export default function IconPickerModal({
             onClick={onClose}
             style={{ width: 28, height: 28 }}
           >
-            ✕
+            <FontAwesomeIcon icon={faXmark} style={{ fontSize: 14 }} />
           </button>
         </div>
 
@@ -90,10 +92,7 @@ export default function IconPickerModal({
             {/* Search Input */}
             <div className="icon-search-box">
               <div className="icon-search-icon">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
+                <FontAwesomeIcon icon={faMagnifyingGlass} style={{ fontSize: 15 }} />
               </div>
               <input
                 type="text"
@@ -201,7 +200,9 @@ export default function IconPickerModal({
               className="dropzone"
               onClick={() => fileRef.current?.click()}
             >
-              <div style={{ fontSize: 28, marginBottom: 6 }}>🖼️</div>
+              <div style={{ marginBottom: 6 }}>
+                <FontAwesomeIcon icon={faImage} style={{ fontSize: 28, color: 'var(--muted)' }} />
+              </div>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>
                 Choose an image file
               </div>

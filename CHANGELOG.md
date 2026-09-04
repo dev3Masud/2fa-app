@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.4] - 2026-09-04
+
+### Changed
+* **All UI icons migrated to Font Awesome.** Every hand-written inline SVG icon and text/emoji glyph across the dashboard, account rows, group headers, modals, and login page is now a Font Awesome 6 icon rendered via `@fortawesome/react-fontawesome` (vault shield, eye / eye-slash, magnifying glass, copy, check, pen, lock / unlock, trash-can, QR code, image, arrows, x-mark). The 70+ service brand logos in `src/lib/icons.jsx` are unchanged — Font Awesome does not cover those services — and the `Countdown` progress ring stays as functional SVG.
+
+### Fixed
+* **Broken up/down reorder arrows.** The account and group reorder buttons used hand-written SVG polylines with invalid point lists (e.g. `18 15 2 15 10 9`), rendering as tiny broken marks. They are now proper `faChevronUp` / `faChevronDown` Font Awesome icons at matching sizes.
+
+### Added
+* New runtime dependencies: `@fortawesome/fontawesome-svg-core`, `@fortawesome/react-fontawesome`, `@fortawesome/free-solid-svg-icons`, `@fortawesome/free-regular-svg-icons`, `@fortawesome/free-brands-svg-icons`.
+
+---
+
 ## [2.0.3] - 2026-09-04
 
 ### Changed

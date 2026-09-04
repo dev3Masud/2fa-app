@@ -1,5 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import {
+  faCheck,
+  faTriangleExclamation,
+  faLock,
+  faTrashCan,
+  faArrowRight,
+  faArrowLeft,
+  faXmark,
+} from '@fortawesome/free-solid-svg-icons'
 import { ServiceLogo } from '../lib/icons.jsx'
 
 const CONFIRM_PHRASE = 'SUDO DELETE'
@@ -81,26 +91,25 @@ export default function DeleteModal({
                 }}
               >
                 {step > s ? (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+                  <FontAwesomeIcon icon={faCheck} style={{ fontSize: 12 }} />
                 ) : (
                   `${s}. `
                 )}
                 {s === 1 ? 'Warning' : 'Confirm'}
               </span>
-              {s === 1 && <span style={{ color: 'var(--muted)', fontSize: 12 }}>→</span>}
+              {s === 1 && (
+                <FontAwesomeIcon
+                  icon={faArrowRight}
+                  style={{ color: 'var(--muted)', fontSize: 12 }}
+                />
+              )}
             </div>
           ))}
         </div>
 
         {/* Danger Icon with glowing border */}
         <div className="delete-modal-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-            <line x1="12" y1="9" x2="12" y2="13" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
+          <FontAwesomeIcon icon={faTriangleExclamation} style={{ fontSize: 24 }} />
         </div>
 
         {/* ── STEP 1: Warning ── */}
@@ -174,21 +183,10 @@ export default function DeleteModal({
                 lineHeight: 1.5,
               }}
             >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#ef4444"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ flexShrink: 0, marginTop: 1 }}
-              >
-                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                <line x1="12" y1="9" x2="12" y2="13" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
+              <FontAwesomeIcon
+                icon={faTriangleExclamation}
+                style={{ flexShrink: 0, marginTop: 1, fontSize: 18, color: '#ef4444' }}
+              />
               <div>
                 <strong>Warning:</strong>{' '}
                 {isGroupDelete
@@ -206,7 +204,7 @@ export default function DeleteModal({
                 className="btn btn-danger-solid"
                 onClick={() => setStep(2)}
               >
-                Continue →
+                Continue <FontAwesomeIcon icon={faArrowRight} style={{ fontSize: 12 }} />
               </button>
             </div>
           </div>
@@ -242,19 +240,10 @@ export default function DeleteModal({
             {/* Beautiful Custom Input Field with Left SVG Icon */}
             <div className="delete-input-wrap">
               <div className="delete-input-icon">
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke={isConfirmed ? '#10b981' : '#ef4444'}
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0110 0v4" />
-                </svg>
+                <FontAwesomeIcon
+                  icon={faLock}
+                  style={{ fontSize: 18, color: isConfirmed ? '#10b981' : '#ef4444' }}
+                />
               </div>
 
               <input
@@ -276,14 +265,12 @@ export default function DeleteModal({
                   <span style={{ color: 'var(--muted)', fontSize: 12 }}>
                     {CONFIRM_PHRASE.startsWith(confirmText.trim().toUpperCase())
                       ? `Keep typing… ${CONFIRM_PHRASE.length - confirmText.trim().length} chars left`
-                      : '✗ Does not match — must type: ' + CONFIRM_PHRASE}
+                      : <><FontAwesomeIcon icon={faXmark} style={{ fontSize: 12 }} /> Does not match — must type: {CONFIRM_PHRASE}</>}
                   </span>
                 )}
                 {isConfirmed && (
                   <span style={{ color: '#10b981', fontWeight: 600, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
+                    <FontAwesomeIcon icon={faCheck} style={{ fontSize: 14 }} />
                     Ready to delete
                   </span>
                 )}
@@ -319,7 +306,7 @@ export default function DeleteModal({
                 disabled={loading}
                 style={{ borderColor: 'var(--border)' }}
               >
-                ← Back
+                <FontAwesomeIcon icon={faArrowLeft} style={{ fontSize: 12 }} /> Back
               </button>
               <button
                 type="submit"
@@ -340,22 +327,8 @@ export default function DeleteModal({
                   </>
                 ) : (
                   <>
-                    {/* SVG Trash Icon instead of emoji */}
-                    <svg
-                      width="15"
-                      height="15"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      <line x1="10" y1="11" x2="10" y2="17" />
-                      <line x1="14" y1="11" x2="14" y2="17" />
-                    </svg>
+                    {/* Font Awesome Trash Icon */}
+                    <FontAwesomeIcon icon={faTrashCan} style={{ fontSize: 15 }} />
                     <span>{isGroupDelete ? 'Delete Group Forever' : 'Delete Forever'}</span>
                   </>
                 )}
