@@ -525,12 +525,14 @@ export default function Dashboard() {
           <span className="badge">{accounts.length}</span>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="header-actions">
           {/* Privacy Toggle (Mask/Reveal) */}
           <button
-            className={`btn-icon ${masked ? 'active' : ''}`}
+            className={`btn-icon header-icon-btn ${masked ? 'active' : ''}`}
             onClick={() => setMasked(!masked)}
             title={masked ? 'Reveal Codes' : 'Mask Codes (Privacy Mode)'}
+            aria-label={masked ? 'Reveal codes' : 'Mask codes'}
+            aria-pressed={masked}
           >
             {masked ? (
               <FontAwesomeIcon icon={faEyeSlash} style={{ fontSize: 17 }} />
@@ -541,40 +543,41 @@ export default function Dashboard() {
 
           {/* New Group Button */}
           <button
-            className="btn"
+            className="btn header-btn"
             onClick={() => setShowNewGroupModal(true)}
             title="Create a new custom group"
           >
-            <FontAwesomeIcon icon={faPlus} style={{ fontSize: 12 }} /> Group
+            <FontAwesomeIcon icon={faPlus} style={{ fontSize: 12 }} /> <span className="btn-label">Group</span>
           </button>
 
           {/* Edit Position Toggle — reveals up/down arrows on every row and group */}
           <button
-            className={`btn ${editMode ? 'btn-primary' : ''}`}
+            className={`btn header-btn ${editMode ? 'btn-primary' : ''}`}
             onClick={() => setEditMode((v) => !v)}
             title={editMode ? 'Done editing positions' : 'Edit positions of groups and accounts'}
+            aria-pressed={editMode}
           >
             {editMode ? (
-              <><FontAwesomeIcon icon={faCheck} style={{ fontSize: 12 }} /> Done</>
+              <><FontAwesomeIcon icon={faCheck} style={{ fontSize: 12 }} /> <span className="btn-label">Done</span></>
             ) : (
-              <><FontAwesomeIcon icon={faPen} style={{ fontSize: 12 }} /> Edit</>
+              <><FontAwesomeIcon icon={faPen} style={{ fontSize: 12 }} /> <span className="btn-label">Edit</span></>
             )}
           </button>
 
           {/* Add Account Button */}
           <button
-            className="btn btn-primary"
+            className="btn btn-primary header-btn header-btn-add"
             onClick={() => {
               setAddDefaultGroup(activeGroupFilter !== 'ALL' && activeGroupFilter !== 'UNGROUPED' ? activeGroupFilter : '')
               setShowAdd(true)
             }}
           >
-            <FontAwesomeIcon icon={faPlus} style={{ fontSize: 12 }} /> Add
+            <FontAwesomeIcon icon={faPlus} style={{ fontSize: 12 }} /> <span className="btn-label">Add</span>
           </button>
 
           {/* Lock Vault Button */}
-          <button className="btn" onClick={logout} title="Lock Vault and sign out">
-            <FontAwesomeIcon icon={faLock} style={{ fontSize: 12 }} /> Lock
+          <button className="btn header-btn" onClick={logout} title="Lock Vault and sign out" aria-label="Lock vault">
+            <FontAwesomeIcon icon={faLock} style={{ fontSize: 12 }} /> <span className="btn-label">Lock</span>
           </button>
         </div>
       </div>
@@ -586,7 +589,13 @@ export default function Dashboard() {
         </div>
         <input
           ref={searchInputRef}
-          type="text"
+          type="search"
+          inputMode="search"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          enterKeyHint="search"
+          aria-label="Search accounts"
           className="search-input"
           placeholder="Search by name or issuer..."
           value={searchQuery}

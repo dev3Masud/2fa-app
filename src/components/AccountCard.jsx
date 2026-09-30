@@ -77,7 +77,20 @@ export default function AccountCard({
 
   return (
     <>
-      <div className={`account-card ${copied ? 'copied-flash' : ''}`}>
+      <div
+        className={`account-card ${copied ? 'copied-flash' : ''}`}
+        onClick={copyCode}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            copyCode(e)
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        title="Tap to copy code"
+        aria-label={`Copy code for ${account.label}`}
+      >
         {/* Left: Logo & Account Info */}
         <div className="account-left">
           <ServiceLogo
@@ -113,13 +126,21 @@ export default function AccountCard({
         </div>
 
         {/* Right: Live Code & Live Timer & Actions */}
-        <div className="code-block">
+        <div className="code-block" onClick={(e) => e.stopPropagation()}>
           {account.type === 'hotp' ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="hotp-row">
               <div
                 className="code"
                 onClick={copyCode}
                 title="Click to copy code"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    copyCode(e)
+                  }
+                }}
               >
                 {formatCode(code)}
               </div>
@@ -133,11 +154,19 @@ export default function AccountCard({
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="totp-row">
               <div
                 className={`code ${remaining <= 5 ? 'expired' : ''}`}
                 onClick={copyCode}
                 title="Click to copy code"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    copyCode(e)
+                  }
+                }}
               >
                 {formatCode(code)}
               </div>
