@@ -71,8 +71,17 @@ html, body, #root {
   background-image: var(--bg-gradient);
   background-attachment: fixed;
   color: var(--text);
+}
+
+/* Prevent horizontal overflow without hijacking the page scroller.
+   NOTE: `overflow-x: hidden` on html/body creates a scroll container
+   (overflow-y computes to auto) and breaks normal mouse + touch
+   scrolling and sticky positioning — so use `clip` instead, which
+   doesn't establish a scroll container. The `hidden` line stays as a
+   fallback for old browsers that don't support `clip`. */
+body {
   overflow-x: hidden;
-  overscroll-behavior-y: none;
+  overflow-x: clip;
 }
 
 body {
@@ -1662,7 +1671,9 @@ img, svg {
     padding: 9px 13px;
     font-size: 12.5px;
     min-height: 36px;
-    touch-action: pan-x;
+    /* NOTE: no `touch-action: pan-x` here — it would disable vertical
+       page scrolling for any swipe starting on a pill. `manipulation`
+       (set globally) already removes tap delay while keeping panning. */
   }
 
   /* Group cards: full-bleed, tighter radius */
