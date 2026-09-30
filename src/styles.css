@@ -1521,6 +1521,93 @@ img, svg {
   flex-wrap: wrap;
 }
 
+/* ── Live Camera QR Scanner ─────────────────────────────────── */
+.scanner-view {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #000;
+  aspect-ratio: 4 / 3;
+  border: 1px solid var(--border);
+  min-height: 240px;
+}
+
+.scanner-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: #000;
+}
+
+.scanner-frame {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.scanner-box {
+  position: relative;
+  width: min(62%, 260px);
+  aspect-ratio: 1;
+}
+
+.scan-corner {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border: 3px solid #38bdf8;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.7));
+}
+.scan-corner.tl { top: 0; left: 0; border-right: none; border-bottom: none; border-radius: 8px 0 0 0; }
+.scan-corner.tr { top: 0; right: 0; border-left: none; border-bottom: none; border-radius: 0 8px 0 0; }
+.scan-corner.bl { bottom: 0; left: 0; border-right: none; border-top: none; border-radius: 0 0 0 8px; }
+.scan-corner.br { bottom: 0; right: 0; border-left: none; border-top: none; border-radius: 0 0 8px 0; }
+
+.scanner-laser {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  height: 2px;
+  border-radius: 2px;
+  background: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.9);
+  animation: laserMove 2.2s ease-in-out infinite;
+}
+@keyframes laserMove {
+  0%, 100% { top: 8%; }
+  50% { top: 90%; }
+}
+
+.scanner-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+  pointer-events: none;
+}
+
+.scanner-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 20px;
+  aspect-ratio: auto;
+  background: var(--bg);
+}
+
 /* ── Toast ────────────────────────────────────────────────── */
 .toast {
   position: fixed;
@@ -1785,32 +1872,31 @@ img, svg {
     gap: 0;
   }
 
-  /* Modals become bottom sheets */
+  /* Modals stay centered dialogs on mobile (not bottom sheets) */
   .modal-backdrop {
-    padding: 0;
-    align-items: flex-end;
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    align-items: center;
+    justify-content: center;
   }
   .modal {
-    max-width: 100%;
     width: 100%;
-    max-height: 92dvh;
-    border-radius: 20px 20px 0 0;
-    padding: 20px 18px calc(20px + env(safe-area-inset-bottom, 0px));
-    border-bottom: none;
-    animation: sheetUp 0.25s var(--ease-out);
-  }
-  @keyframes sheetUp {
-    from { opacity: 0; transform: translateY(24px); }
-    to { opacity: 1; transform: translateY(0); }
+    max-width: 100%;
+    max-height: calc(90vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(90dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    border-radius: 18px;
+    padding: 20px 18px;
+    animation: scaleUp 0.18s ease-out;
   }
   .modal-actions {
-    flex-direction: column-reverse;
+    flex-direction: row;
     gap: 8px;
   }
   .modal-actions .btn {
-    width: 100%;
+    flex: 1;
     min-height: 46px;
     font-size: 14px;
+    white-space: nowrap;
   }
 
   .tabs {

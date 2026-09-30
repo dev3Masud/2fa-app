@@ -129,6 +129,7 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'PNG decoder not available' })
   }
 
+  // attemptBoth: also catches light-on-dark QRs (dark-mode screenshots)
   const code = jsQR(
     new Uint8ClampedArray(
       imageData.data.buffer,
@@ -136,7 +137,8 @@ router.post('/', async (req, res) => {
       imageData.data.byteLength
     ),
     imageData.width,
-    imageData.height
+    imageData.height,
+    { inversionAttempts: 'attemptBoth' }
   )
   if (!code) return res.status(400).json({ error: 'No QR code detected in image' })
 

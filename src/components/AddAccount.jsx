@@ -1,8 +1,142 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faQrcode, faPlus } from '@fortawesome/free-solid-svg-icons'
+import { faQrcode, faPlus, faCamera, faRotateRight } from '@fortawesome/free-solid-svg-icons'
 import jsQR from 'jsqr'
+
+const QR_DECODE_OPTS = { inversionAttempts: 'attemptBoth' }
+
+// ── Live camera QR scanner (no extra deps — uses getUserMedia + jsQR) ──────
+// Mounts the rear camera, scans video frames ~5x/sec, and calls onDetected
+// once with the raw QR payload. Unmount to stop the camera.
+function CameraScanner({ onDetected }) {
+  const videoRef = useRef(null)
+  const [status, setStatus] = useState('starting') // starting | scanning | error
+  const [errMsg, setErrMsg] = useState('')
+  const [attempt, setAttempt] = useState(0)
+
+  useEffect(() => {
+    let stream = null
+    let raf = 0
+    let lastRun = 0
+    let stopped = false
+
+    async function start() {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error(
+            'Camera needs a secure (HTTPS) connection. Open this page via HTTPS or localhost, or use Upload instead.'
+          )
+        }
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        })
+        if (stopped) {
+          stream.getTracks().forEach((t) => t.stop())
+          return
+        }
+        const video = videoRef.current
+        if (!video) return
+        video.srcObject = stream
+        // Set via property: React's `muted` prop only sets the attribute,
+        // which some mobile browsers ignore for autoplay policy.
+        video.muted = true
+        await video.play()
+        if (stopped) return
+        setStatus('scanning')
+
+        const canvas = document.createElement('canvas')
+        const loop = (t) => {
+          if (stopped) return
+          raf = requestAnimationFrame(loop)
+          if (t - lastRun < 200) return // ~5 fps is plenty for QR
+          lastRun = t
+          const v = videoRef.current
+          if (!v || v.readyState < 2 || !v.videoWidth) return
+          const scale = Math.min(1, 640 / v.videoWidth)
+          const w = Math.round(v.videoWidth * scale)
+          const h = Math.round(v.videoHeight * scale)
+          if (canvas.width !== w || canvas.height !== h) {
+            canvas.width = w
+            canvas.height = h
+          }
+          const ctx = canvas.getContext('2d', { willReadFrequently: true })
+          ctx.drawImage(v, 0, 0, w, h)
+          try {
+            const imageData = ctx.getImageData(0, 0, w, h)
+            const code = jsQR(imageData.data, w, h, QR_DECODE_OPTS)
+            if (code && code.data) {
+              stopped = true
+              cancelAnimationFrame(raf)
+              onDetected(code.data)
+            }
+          } catch {
+            // ignore per-frame errors, keep scanning
+          }
+        }
+        raf = requestAnimationFrame(loop)
+      } catch (e) {
+        if (stopped) return
+        setStatus('error')
+        if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) {
+          setErrMsg('Camera permission was denied. Allow camera access in your browser, then try again — or use Upload instead.')
+        } else if (e && (e.name === 'NotFoundError' || e.name === 'OverconstrainedError')) {
+          setErrMsg('No camera found on this device. Use Upload instead.')
+        } else {
+          setErrMsg(e.message || 'Could not start the camera. Use Upload instead.')
+        }
+      }
+    }
+
+    start()
+    return () => {
+      stopped = true
+      cancelAnimationFrame(raf)
+      if (stream) stream.getTracks().forEach((t) => t.stop())
+      if (videoRef.current) videoRef.current.srcObject = null
+    }
+    // `attempt` re-runs the whole startup for the Retry button.
+    // onDetected is captured from the first render on purpose — it only
+    // uses stable setState setters, `api`, and `applyParsedData`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attempt])
+
+  if (status === 'error') {
+    return (
+      <div className="scanner-view scanner-error">
+        <FontAwesomeIcon icon={faCamera} style={{ fontSize: 32, color: 'var(--muted)', marginBottom: 10 }} />
+        <div style={{ fontWeight: 600, marginBottom: 6 }}>Camera unavailable</div>
+        <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>{errMsg}</div>
+        <button className="btn" onClick={() => { setErrMsg(''); setStatus('starting'); setAttempt((a) => a + 1); }}>
+          <FontAwesomeIcon icon={faRotateRight} style={{ fontSize: 12 }} /> Retry
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="scanner-view">
+      <video ref={videoRef} className="scanner-video" playsInline muted autoPlay />
+      <div className="scanner-frame" aria-hidden="true">
+        <div className="scanner-box">
+          <span className="scan-corner tl" />
+          <span className="scan-corner tr" />
+          <span className="scan-corner bl" />
+          <span className="scan-corner br" />
+          {status === 'scanning' && <span className="scanner-laser" />}
+        </div>
+      </div>
+      <div className="scanner-hint">
+        {status === 'starting' ? 'Starting camera…' : 'Point your camera at the QR code'}
+      </div>
+    </div>
+  )
+}
 import { api } from '../lib/api.js'
 import { BRAND_ICONS, ServiceLogo, detectService } from '../lib/icons.jsx'
 import { getCustomGroups, createCustomGroup, setAccountMeta } from '../lib/groupsStorage.js'
@@ -53,36 +187,105 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
     })
   }
 
-  // Client-side instant QR reader for PNG, JPEG, WebP
-  async function decodeQrClientSide(file) {
+  // Load an image file into an <img> without blocking the main thread
+  function loadImageElement(file) {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        const img = new Image()
-        img.onload = () => {
-          try {
-            const canvas = document.createElement('canvas')
-            canvas.width = img.width
-            canvas.height = img.height
-            const ctx = canvas.getContext('2d')
-            ctx.drawImage(img, 0, 0, img.width, img.height)
-            const imageData = ctx.getImageData(0, 0, img.width, img.height)
-            const code = jsQR(imageData.data, imageData.width, imageData.height)
-            if (code && code.data) {
-              resolve(code.data)
-            } else {
-              reject(new Error('No QR code detected in image'))
-            }
-          } catch (e) {
-            reject(e)
-          }
-        }
-        img.onerror = () => reject(new Error('Failed to load image for scanning'))
-        img.src = reader.result
+      const url = URL.createObjectURL(file)
+      const img = new Image()
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        resolve(img)
       }
-      reader.onerror = () => reject(new Error('Failed to read file'))
-      reader.readAsDataURL(file)
+      img.onerror = () => {
+        URL.revokeObjectURL(url)
+        reject(new Error('Failed to load image for scanning'))
+      }
+      img.src = url
     })
+  }
+
+  // Decode one canvas-sized pass, returns the QR payload or null
+  function decodePass(img, sx, sy, sw, sh, dw, dh) {
+    const canvas = document.createElement('canvas')
+    canvas.width = dw
+    canvas.height = dh
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    // White background: screenshots with transparency decode better on white
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, dw, dh)
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh)
+    const imageData = ctx.getImageData(0, 0, dw, dh)
+    const code = jsQR(imageData.data, dw, dh, QR_DECODE_OPTS)
+    return code && code.data ? code.data : null
+  }
+
+  // Screenshot-robust QR reader for PNG, JPEG, WebP.
+  // Phone screenshots are huge with a (sometimes small) QR inside, so a
+  // single full-res decode often fails. We retry at several downscaled
+  // sizes plus a center crop, with light/dark inversion attempts each time.
+  async function decodeQrClientSide(file) {
+    const img = await loadImageElement(file)
+    const W = img.naturalWidth || img.width
+    const H = img.naturalHeight || img.height
+    if (!W || !H) throw new Error('Failed to load image for scanning')
+
+    const fit = (maxDim) => {
+      const scale = Math.min(1, maxDim / Math.max(W, H))
+      return { w: Math.max(1, Math.round(W * scale)), h: Math.max(1, Math.round(H * scale)) }
+    }
+
+    const passes = []
+    const seen = new Set()
+    const pushFit = (maxDim) => {
+      const { w, h } = fit(maxDim)
+      const key = `${w}x${h}`
+      if (seen.has(key)) return
+      seen.add(key)
+      passes.push({ sx: 0, sy: 0, sw: W, sh: H, dw: w, dh: h })
+    }
+    // Full frame at descending sizes (big screenshots → small QR)
+    pushFit(1400)
+    pushFit(900)
+    pushFit(480)
+    // Center crop (QR small in a busy full-screen screenshot)
+    if (Math.min(W, H) > 480) {
+      const cw = Math.round(W * 0.62)
+      const ch = Math.round(H * 0.62)
+      const cx = Math.round((W - cw) / 2)
+      const cy = Math.round((H - ch) / 2)
+      const scale = Math.min(1, 900 / Math.max(cw, ch))
+      passes.push({
+        sx: cx, sy: cy, sw: cw, sh: ch,
+        dw: Math.max(1, Math.round(cw * scale)),
+        dh: Math.max(1, Math.round(ch * scale)),
+      })
+    }
+
+    for (const p of passes) {
+      try {
+        const data = decodePass(img, p.sx, p.sy, p.sw, p.sh, p.dw, p.dh)
+        if (data) return data
+      } catch {
+        // try next pass
+      }
+    }
+    throw new Error('No QR code detected in image')
+  }
+
+  // Downscaled PNG data URL for the server fallback (server caps at 2 MB
+  // and only accepts PNG/JPEG — a resized flat screenshot is tiny).
+  function imageToSmallPng(img, maxDim) {
+    const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight))
+    const w = Math.max(1, Math.round(img.naturalWidth * scale))
+    const h = Math.max(1, Math.round(img.naturalHeight * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, w, h)
+    ctx.drawImage(img, 0, 0, w, h)
+    return canvas.toDataURL('image/png')
   }
 
   async function readFile(file) {
@@ -99,18 +302,19 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
       try {
         qrContent = await decodeQrClientSide(file)
       } catch (clientErr) {
-        const reader = new FileReader()
-        qrContent = await new Promise((resolve, reject) => {
-          reader.onload = async () => {
-            try {
-              const res = await api.parseQr(reader.result)
-              resolve(res.data)
-            } catch (e) {
-              reject(clientErr || e)
-            }
+        // Server fallback: send a downscaled PNG (original screenshots are
+        // often >2 MB or WebP, both of which the server rejects).
+        try {
+          const img = await loadImageElement(file)
+          let dataUri = imageToSmallPng(img, 1200)
+          if (dataUri.length > 1.8 * 1024 * 1024) {
+            dataUri = imageToSmallPng(img, 800)
           }
-          reader.readAsDataURL(file)
-        })
+          const res = await api.parseQr(dataUri)
+          qrContent = res.data
+        } catch (e) {
+          throw clientErr || e
+        }
       }
 
       if (typeof qrContent === 'string') {
@@ -152,6 +356,27 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
       applyParsedData(res.data)
     } catch (e) {
       setErr(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Called once per camera scan with the raw QR payload. On success the
+  // form is filled and we jump to Manual Entry (which unmounts the camera).
+  // On failure we remount the scanner so the user can try again.
+  const [scanKey, setScanKey] = useState(0)
+  async function handleScannedData(data) {
+    setErr('')
+    setLoading(true)
+    try {
+      const res = await api.parseUri(String(data).trim())
+      applyParsedData(res.data)
+    } catch (e) {
+      setErr(
+        (e.message || 'That QR code is not a valid 2FA code.') +
+        ' Point at the 2FA setup QR and hold still.'
+      )
+      setScanKey((k) => k + 1) // remount scanner for another attempt
     } finally {
       setLoading(false)
     }
@@ -208,6 +433,10 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
             <button className={`tab ${tab === 'qr' ? 'active' : ''}`} onClick={() => setTab('qr')}>
               Upload QR Image
             </button>
+            <button className={`tab ${tab === 'scan' ? 'active' : ''}`} onClick={() => setTab('scan')}>
+              <FontAwesomeIcon icon={faCamera} style={{ fontSize: 12, marginRight: 4 }} />
+              Scan Camera
+            </button>
             <button className={`tab ${tab === 'uri' ? 'active' : ''}`} onClick={() => setTab('uri')}>
               Paste URI
             </button>
@@ -236,10 +465,10 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
                 <FontAwesomeIcon icon={faQrcode} style={{ fontSize: 36, color: 'var(--muted)' }} />
               </div>
               <div style={{ fontWeight: 500, color: 'var(--text)', marginBottom: 4 }}>
-                {loading ? 'Scanning QR code…' : 'Drop QR screenshot here or click to browse'}
+                {loading ? 'Scanning QR code…' : 'Drop a QR screenshot here or click to browse'}
               </div>
               <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                Supports PNG, JPEG, and WebP
+                Auto-detects QR codes in full-screen screenshots · PNG, JPEG, WebP
               </div>
               <input
                 ref={fileRef}
@@ -248,6 +477,19 @@ export default function AddAccount({ onClose, onCreated, defaultGroup = '' }) {
                 style={{ display: 'none' }}
                 onChange={(e) => readFile(e.target.files?.[0])}
               />
+            </div>
+          )}
+
+          {/* Live Camera Scan Tab (unmount = camera off) */}
+          {tab === 'scan' && (
+            <div>
+              <CameraScanner key={scanKey} onDetected={handleScannedData} />
+              <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 10 }}>
+                No camera?{' '}
+                <button type="button" className="btn-link" onClick={() => setTab('qr')}>
+                  Upload a screenshot instead
+                </button>
+              </div>
             </div>
           )}
 
